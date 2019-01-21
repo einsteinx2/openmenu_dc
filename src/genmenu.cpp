@@ -70,7 +70,7 @@ class MyMenu : public GenericMenu, public RefCnt
         m_scene->subAdd(title_label);
 
         disc_label = new Label(fnt, "DISC_TITLE", 24, true, true);
-        disc_label->setTranslate(Vector(0, 0, 0));
+        disc_label->setTranslate(Vector(0, -20, 0));
         disc_label->setTint(m_gray);
         m_scene->subAdd(disc_label);
 
@@ -83,10 +83,10 @@ class MyMenu : public GenericMenu, public RefCnt
         m_scene->subAdd(updateGD);
 
         // Load a texture for our banner
-        // txr = new Texture();
-        //plx_texture_t *tex = *txr;
-        //pvr_ptr_t tl = TextureLoadPVR("/rd/0GDTEX.PVR", 0, 0);
-        /*if (tl != NULL)
+        /*txr = new Texture();
+        plx_texture_t *tex = *txr;
+        pvr_ptr_t tl = TextureLoadPVR("/rd/0GDTEX.PVR", 0, 0);
+        if (tl != NULL)
         {
             tex->ptr = tl;
         }*/
@@ -143,31 +143,33 @@ class MyMenu : public GenericMenu, public RefCnt
                 break;
             }
         } while (1);
-#if DEBUG
+        #define DEBUG
+#ifdef DEBUG
         printf("updateGD->getBinary() = [%s]\n", updateGD->getBinary());
         fflush(stdout);
 #endif
         file_t f = fs_open(updateGD->getBinary(), O_RDONLY);
         void *gd_binary;
-#if DEBUG
+#ifdef DEBUG
         assert(f);
         printf("Step 1.\n");
         fflush(stdout);
 #endif
 
         gd_binary = fs_mmap(f);
-#if DEBUG
+#ifdef DEBUG
         assert(gd_binary);
         printf("Step 1.\n");
         fflush(stdout);
 #endif
 
-#if DEBUG
+#ifdef DEBUG
         char msg[50];
         sprintf(msg, "BINARY mapped at %08x, jumping to it!\n", gd_binary);
         printf(msg);
         fflush(stdout);
 #endif
+#undef DEBUG
 
         arch_exec(gd_binary, fs_total(f));
     }

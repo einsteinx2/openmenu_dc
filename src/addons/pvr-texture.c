@@ -34,6 +34,7 @@ pvr_ptr_t TextureLoadPVR(char *fname, unsigned char isMipMapped, unsigned char g
     if (tex == NULL)
     {
         printf("FILE READ ERROR: %s\n", fname);
+        fflush(stdout);
         return (pvr_ptr_t)NULL;
     }
 
