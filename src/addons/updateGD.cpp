@@ -74,8 +74,8 @@ void UpdateGD::read_disc_info()
 
     if (is_dc_img())
     {
-        memcpy(str, secbuf + 128, 32);
-        str[32] = '\0';
+        memcpy(game_title, secbuf + 128, 32);
+        game_title[32] = '\0';
     }
     else
     {
@@ -83,13 +83,27 @@ void UpdateGD::read_disc_info()
 
         if (is_psx_img())
         {
-            memcpy(str, secbuf + 40, 32);
-            str[32] = '\0';
+            memcpy(game_title, secbuf + 40, 32);
+            game_title[32] = '\0';
             printf("[PSX] ");
         }
         else
         {
-            strcpy(str, "Unknown disc");
+            strcpy(game_title, "Unknown disc");
+        }
+    }
+    /* Figure out what the boot file is called */
+    sprintf(binary_name, "%s", "/cd/");
+    memcpy(binary_name + 4, (char *)secbuf + 0x60, 16);
+    binary_name[16 + 4] = 0;
+    int i;
+    /* Remove any spaces at the end of the binary_name */
+    for (i = 0; i < 16; ++i)
+    {
+        if (binary_name[i + 4] == ' ')
+        {
+            binary_name[i + 4] = 0;
+            break;
         }
     }
 }

@@ -14,14 +14,16 @@ public:
 	virtual ~UpdateGD();
 
 	virtual void draw(int list);
-	char *getTitle() { return str; };
+	char *getTitle() { return game_title; };
+	char *getBinary() { return binary_name; };
 
 	void next();
 	void prev();
 
 private:
 	uint8_t secbuf[2048];
-	char str[64];
+	char game_title[64];
+	char binary_name[17];
 	CDROM_TOC toc;
 
 	int is_dc_img();

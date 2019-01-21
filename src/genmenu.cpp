@@ -21,6 +21,20 @@ extern uint8 romdisk[];
 KOS_INIT_FLAGS(INIT_DEFAULT);
 KOS_INIT_ROMDISK(romdisk);
 
+/* __FROM PSO PATCHER__ */
+#define BIN_BASE    0xac010000
+#define IP_BASE     0xac008000
+#define SYS_BASE    0x8c008000
+#define IP_LEN      32768
+
+extern void boot_stub(void *, uint32) __attribute__((noreturn));
+extern uint32 boot_stub_len;
+
+extern unsigned long end;
+static uint8 *ip_bin = (uint8 *)IP_BASE;
+static uint8 *bin = (uint8 *)BIN_BASE;
+/* __END__ */
+
 class MyMenu : public GenericMenu, public RefCnt
 {
   public:
@@ -34,6 +48,8 @@ class MyMenu : public GenericMenu, public RefCnt
 
         m_white = Color(1, 1, 1, 1);
         m_gray = Color(1, 0.7f, 0.7f, 0.7f);
+
+        m_red = Color(1, 1, 0.42f, 0.38f);
 
         m_options[0] = new Label(fnt, "Prev", 24, true, true);
         m_options[0]->setTranslate(Vector(0, 400, 0));
@@ -68,6 +84,11 @@ class MyMenu : public GenericMenu, public RefCnt
         disc_label->setTranslate(Vector(0, 0, 0));
         disc_label->setTint(m_gray);
         m_scene->subAdd(disc_label);
+                
+        status_label = new Label(fnt, "Welcome to openMenu!", 24, true, true);
+        status_label->setTranslate(Vector(-320, 220, 0));
+        status_label->setTint(m_red);
+        m_scene->subAdd(status_label);
 
         updateGD = new UpdateGD();
         m_scene->subAdd(updateGD);
@@ -95,6 +116,28 @@ class MyMenu : public GenericMenu, public RefCnt
     void updateDiscLabel()
     {
         disc_label->setText(updateGD->getTitle());
+        title_label->setText(updateGD->getBinary());
+    }
+
+    void AttemptToRun(){
+        /* __From PSO Patcher__ */
+
+        int i, fd, cur = 0, rsz;
+        /* Read the binary in. This reads directly into the correct address. */
+        if((fd = open(updateGD->getBinary(), O_RDONLY)) < 0){
+
+        }
+            return;
+
+        while((rsz = read(fd, bin + cur, 2048)) > 0) {
+            cur += rsz;
+        }
+
+        close(fd);
+        /* The binary is in place, so let's try to boot it, shall we? */
+        void (*f)(void) __attribute__((noreturn));
+        f = (void *)((uint32)(&boot_stub) | 0xa0000000);
+        f();
     }
 
     virtual void inputEvent(const Event &evt)
@@ -122,17 +165,22 @@ class MyMenu : public GenericMenu, public RefCnt
             switch (m_cursel)
             {
             case 0:
+                status_label->setText("Loading Prev Disc!");
                 updateGD->prev();
                 updateDiscLabel();
                 break;
             case 1:
+                status_label->setText("Loading Next Disc!");
                 updateGD->next();
                 updateDiscLabel();
                 break;
             case 2:
+                status_label->setText("Trying to Execute disc!");
                 /* run the game */
+                AttemptToRun();
                 break;
             case 3:
+                status_label->setText("Exiting!");
                 startExit();
                 break;
             }
@@ -166,9 +214,9 @@ class MyMenu : public GenericMenu, public RefCnt
         GenericMenu::startExit();
     }
 
-    Color m_white, m_gray;
+    Color m_white, m_gray, m_red;
     RefPtr<Label> m_options[6];
-    RefPtr<Label> title_label, disc_label;
+    RefPtr<Label> title_label, disc_label, status_label;
     RefPtr<Texture> txr;
     RefPtr<Banner> b;
     RefPtr<UpdateGD> updateGD;
