@@ -48,6 +48,7 @@ int UpdateGD::is_psx_img()
 void UpdateGD::read_disc_info()
 {
     int status = -1, disc_type = -1, rv = -1;
+    int i;
 
     /* Reinitialize the drive */
     do {
@@ -101,7 +102,6 @@ void UpdateGD::read_disc_info()
     sprintf(binary_name, "%s", "/cd/");
     memcpy(binary_name + 4, (char *)secbuf + 0x60, 16);
     binary_name[16 + 4] = 0;
-    int i;
     /* Remove any spaces at the end of the binary_name */
     for (i = 0; i < 16; ++i)
     {

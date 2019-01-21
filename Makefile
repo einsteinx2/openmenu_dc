@@ -18,7 +18,7 @@ default: $(BUILD_DIR)/$(TARGET_EXEC)
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS) $(BUILD_DIR)/romdisk.o
 	@echo "Linking $(TARGET_EXEC)"
-	@$(CXX) $(OBJS) $(BUILD_DIR)/romdisk.o -o $@ $(DREAM_LIBS)
+	@$(CXX) $(OBJS) $(BUILD_DIR)/romdisk.o -o $@ $(DREAM_LIBS) -Wl,-Ttext=0x8CE00000
 	@echo "Converting $(TARGET_EXEC) to Binary"
 	@sh-elf-objcopy -R .stack -O binary $@ $(basename $@)
 	
@@ -35,14 +35,14 @@ $(BUILD_DIR)/%.s.o: %.s
 # c source
 $(BUILD_DIR)/%.c.o: %.c
 	@$(MKDIR_P) $(dir $@)
-	@echo $(CC) $<
-	@$(CC) -c $< -o $@
+	@echo $(CC) $< 
+	@$(CC) -c $< -o $@ -Wl,-Ttext=0x8CE00000
 
 # c++ source
 $(BUILD_DIR)/%.cpp.o: %.cpp
 	@$(MKDIR_P) $(dir $@)
 	@echo $(CXX) $<
-	@$(CXX) -c $< -o $@
+	@$(CXX) -c $< -o $@ -Wl,-Ttext=0x8CE00000
 	
 # romdisk rules
 $(BUILD_DIR)/romdisk.img:

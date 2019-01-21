@@ -31,8 +31,8 @@ KOS_INIT_ROMDISK(romdisk);
 #define IP_LEN      32768
 
 extern unsigned long end;
-static uint8 *ip_bin = (uint8_t *)IP_BASE;
-static uint8 *bin = (uint8_t *)BIN_BASE;
+static uint8_t *ip_bin = (uint8_t *)IP_BASE;
+static uint8_t *bin = (uint8_t *)BIN_BASE;
 /* __END__ */
 
 class MyMenu : public GenericMenu, public RefCnt
@@ -120,20 +120,28 @@ class MyMenu : public GenericMenu, public RefCnt
     }
 
     void AttemptToRun(){
+        uint32_t sz = 408, data_fad;
+        int i;
         /* __From PSO Patcher__ */
+        /* Figure out where IP.BIN should be... */
+        data_fad =  45150;//gd_locate_data_track(&toc);
+        for(i = 0; i < 16; ++i) {
+            sz = 2048;
+            cdrom_read_sectors((uint16_t *)(ip_bin + i * 2048), data_fad + i, sz);
+        }
         int fd, cur = 0, rsz;
         /* Read the binary in. This reads directly into the correct address. */
-        if((fd = open(updateGD->getBinary(), O_RDONLY)) < 0){
+        if((fd = fs_open(updateGD->getBinary(), O_RDONLY)) < 0){
             return;
         }
-
-
-        while((rsz = read(fd, bin + cur, 2048)) > 0) {
+        status_label->setText("Step 1.");
+        while((rsz = fs_read(fd, bin + cur, 2048)) > 0) {
             cur += rsz;
         }
-
+        status_label->setText("Step 2.");
         close(fd);
         runit();
+        status_label->setText("returned?");
     }
 
     virtual void inputEvent(const Event &evt)
@@ -171,7 +179,7 @@ class MyMenu : public GenericMenu, public RefCnt
                 updateDiscLabel();
                 break;
             case 2:
-                status_label->setText("Trying to Execute disc!");
+                //status_label->setText("Trying to Execute disc!");
                 /* run the game */
                 AttemptToRun();
                 break;
