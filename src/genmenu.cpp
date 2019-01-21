@@ -13,7 +13,7 @@
 extern "C"
 {
 #include "addons/pvr-texture.h"
-extern void runit(void);
+    extern void runit(void);
 }
 
 #include "addons/updateGD.h"
@@ -22,18 +22,7 @@ extern uint8 romdisk[];
 KOS_INIT_FLAGS(INIT_DEFAULT);
 KOS_INIT_ROMDISK(romdisk);
 
-
-
-/* __FROM PSO PATCHER__ */
-#define BIN_BASE    0xac010000
-#define IP_BASE     0xac008000
-#define SYS_BASE    0x8c008000
-#define IP_LEN      32768
-
-extern unsigned long end;
-static uint8_t *ip_bin = (uint8_t *)IP_BASE;
-static uint8_t *bin = (uint8_t *)BIN_BASE;
-/* __END__ */
+static uint8_t *ip_bin = (uint8_t *)0xac008000;
 
 class MyMenu : public GenericMenu, public RefCnt
 {
@@ -84,7 +73,7 @@ class MyMenu : public GenericMenu, public RefCnt
         disc_label->setTranslate(Vector(0, 0, 0));
         disc_label->setTint(m_gray);
         m_scene->subAdd(disc_label);
-                
+
         status_label = new Label(fnt, "Welcome to openMenu!", 24, true, true);
         status_label->setTranslate(Vector(0, 220, 0));
         status_label->setTint(m_red);
@@ -119,35 +108,68 @@ class MyMenu : public GenericMenu, public RefCnt
         status_label->setText(updateGD->getBinary());
     }
 
-    void AttemptToRun(){
+    void AttemptToRun()
+    {
         uint32_t sz = 408, data_fad;
         int i;
-        /* __From PSO Patcher__ */
-        /* Figure out where IP.BIN should be... */
-        data_fad =  45150;//gd_locate_data_track(&toc);
-        for(i = 0; i < 16; ++i) {
+        data_fad = 45150; //gd_locate_data_track(&toc);
+        for (i = 0; i < 16; ++i)
+        {
             sz = 2048;
             cdrom_read_sectors((uint16_t *)(ip_bin + i * 2048), data_fad + i, sz);
         }
-        FILE * bin_file;
-        //int cur = 0, rsz;
-        /* Read the binary in. This reads directly into the correct address. */
-        bin_file = fopen("/cd/1ST_READ.BIN"/*updateGD->getBinary()*/, "rb");
-
-        fseek ( bin_file , 0, SEEK_END );
-        int lSize = ftell( bin_file );
-        fseek ( bin_file , 0, SEEK_SET );
-
+        /*int fd, cur = 0, rsz;
+        // Read the binary in. This reads directly into the correct address. 
+        if((fd = fs_open(updateGD->getBinary(), O_RDONLY)) < 0){
+            return;
+        }
         status_label->setText("Step 1.");
-        /*while((rsz = fs_read(fd, bin + cur, 2048)) > 0) {
+        while((rsz = fs_read(fd, bin + cur, 2048)) > 0) {
             cur += rsz;
-        }*/
-        fread ( bin, 1, lSize, bin_file );
+        }
         status_label->setText("Step 2.");
-        fclose(bin_file);
-        //arch_exec( bin, lSize );
+        close(fd);
         runit();
-        status_label->setText("returned?");
+        status_label->setText("returned?");*/
+        int status = -1, disc_type = -1;
+        do
+        {
+            cdrom_get_status(&status, &disc_type);
+
+            if (status == CD_STATUS_PAUSED ||
+                status == CD_STATUS_STANDBY ||
+                status == CD_STATUS_PLAYING)
+            {
+                break;
+            }
+        } while (1);
+#if DEBUG
+        printf("updateGD->getBinary() = [%s]\n", updateGD->getBinary());
+        fflush(stdout);
+#endif
+        file_t f = fs_open(updateGD->getBinary(), O_RDONLY);
+        void *gd_binary;
+#if DEBUG
+        assert(f);
+        printf("Step 1.\n");
+        fflush(stdout);
+#endif
+
+        gd_binary = fs_mmap(f);
+#if DEBUG
+        assert(gd_binary);
+        printf("Step 1.\n");
+        fflush(stdout);
+#endif
+
+#if DEBUG
+        char msg[50];
+        sprintf(msg, "BINARY mapped at %08x, jumping to it!\n", gd_binary);
+        printf(msg);
+        fflush(stdout);
+#endif
+
+        arch_exec(gd_binary, fs_total(f));
     }
 
     virtual void inputEvent(const Event &evt)
@@ -185,7 +207,7 @@ class MyMenu : public GenericMenu, public RefCnt
                 updateDiscLabel();
                 break;
             case 2:
-                //status_label->setText("Trying to Execute disc!");
+                status_label->setText("Trying to Execute disc!");
                 /* run the game */
                 AttemptToRun();
                 break;
@@ -239,8 +261,6 @@ class MyMenu : public GenericMenu, public RefCnt
 
 int main(int argc, char **argv)
 {
-    int done = 0, done2 = 0;
-
     // Guard against an untoward exit during testing.
     cont_btn_callback(0, CONT_START | CONT_A | CONT_B | CONT_X | CONT_Y,
                       (void (*)(unsigned char, long unsigned int))arch_exit);
