@@ -34,9 +34,7 @@ pvr_ptr_t TextureLoadPVR(char *fname, unsigned char isMipMapped, unsigned char g
     if (tex == NULL)
     {
         printf("FILE READ ERROR: %s\n", fname);
-
-        while (1)
-            ;
+        return (pvr_ptr_t)NULL;
     }
 
     fseek(tex, 0, SEEK_END);
@@ -56,7 +54,6 @@ pvr_ptr_t TextureLoadPVR(char *fname, unsigned char isMipMapped, unsigned char g
        we need to allocate enough space to hold the MipMap texture levels. */
     if (!isMipMapped && glMipMap)
     {
-        return (pvr_ptr_t)-1;
         //TEX0 = malloc(glKosMipMapTexSize(texW, texH));
     }
     else

@@ -11,8 +11,9 @@ int gdemu_get_version(void *buffer, uint32_t *size);
 
 /* param = 0x55 next img */
 /* param = 0x44 prev img */
+#define GDEMU_NEXT_IMG 0x55
+#define GDEMU_PREV_IMG 0x44
 int gdemu_img_cmd(uint8_t cmd);
-
 
 int gdemu_set_img_num(uint8_t img_num_lb, uint8_t img_num_hb);
 #endif /* GDEMU_SDK_H */

@@ -15,6 +15,8 @@ extern "C"
 #include "addons/pvr-texture.h"
 }
 
+#include "addons/updateGD.h"
+
 extern uint8 romdisk[];
 KOS_INIT_FLAGS(INIT_DEFAULT);
 KOS_INIT_ROMDISK(romdisk);
@@ -33,36 +35,51 @@ class MyMenu : public GenericMenu, public RefCnt
         m_white = Color(1, 1, 1, 1);
         m_gray = Color(1, 0.7f, 0.7f, 0.7f);
 
-        int i;
-        for (i = 0; i < 5; i++)
-        {
-            // Setup three labels and have them zoom in.
-            m_options[i] = new Label(fnt, "DISC_TITLE", 24, true, true);
-            m_options[i]->setTranslate(Vector(0, 400 + (i * 400), 0));
-            m_options[i]->animAdd(new LogXYMover(0, -160 + 30 * i));
-            m_options[i]->setTint(m_white);
-            m_scene->subAdd(m_options[i]);
-        }
+        m_options[0] = new Label(fnt, "Prev", 24, true, true);
+        m_options[0]->setTranslate(Vector(0, 400, 0));
+        m_options[0]->animAdd(new LogXYMover(0, -160));
+        m_options[0]->setTint(m_white);
+        m_scene->subAdd(m_options[0]);
 
-        m_options[5] = new Label(fnt, "Quit", 24, true, true);
-        m_options[5]->setTranslate(Vector(0, 400 + (5 * 400), 0));
-        m_options[5]->animAdd(new LogXYMover(0, -160 + 30 *5));
-        m_options[5]->setTint(m_white);
-        m_scene->subAdd(m_options[5]);
+        m_options[1] = new Label(fnt, "Next", 24, true, true);
+        m_options[1]->setTranslate(Vector(0, 400 + 400, 0));
+        m_options[1]->animAdd(new LogXYMover(0, -160 + 30));
+        m_options[1]->setTint(m_gray);
+        m_scene->subAdd(m_options[1]);
 
-        lbl2 = new Label(fnt, "openMenu Loader", 24, true, true);
-        lbl2->setTranslate(Vector(0, -220, 0));
-        lbl2->setTint(m_gray);
-        m_scene->subAdd(lbl2);
+        m_options[2] = new Label(fnt, "Start", 24, true, true);
+        m_options[2]->setTranslate(Vector(0, 400 + 400 + 400, 0));
+        m_options[2]->animAdd(new LogXYMover(0, -160 + 60));
+        m_options[2]->setTint(m_gray);
+        m_scene->subAdd(m_options[2]);
+
+        m_options[3] = new Label(fnt, "Quit", 24, true, true);
+        m_options[3]->setTranslate(Vector(0, 400 + (3 * 400), 0));
+        m_options[3]->animAdd(new LogXYMover(0, -160 + 30 * 3));
+        m_options[3]->setTint(m_gray);
+        m_scene->subAdd(m_options[3]);
+
+        title_label = new Label(fnt, "openMenu Loader", 24, true, true);
+        title_label->setTranslate(Vector(0, -220, 0));
+        title_label->setTint(m_gray);
+        m_scene->subAdd(title_label);
+
+        disc_label = new Label(fnt, "DISC_TITLE", 24, true, true);
+        disc_label->setTranslate(Vector(0, 0, 0));
+        disc_label->setTint(m_gray);
+        m_scene->subAdd(disc_label);
+
+        updateGD = new UpdateGD();
+        m_scene->subAdd(updateGD);
 
         // Load a texture for our banner
-        txr = new Texture();
-        plx_texture_t *tex = *txr;
-        pvr_ptr_t tl = TextureLoadPVR("/rd/0GDTEX.PVR", 0, 0);
-        if (tl != (unsigned int*)-1)
+        // txr = new Texture();
+        //plx_texture_t *tex = *txr;
+        //pvr_ptr_t tl = TextureLoadPVR("/rd/0GDTEX.PVR", 0, 0);
+        /*if (tl != NULL)
         {
             tex->ptr = tl;
-        }
+        }*/
 
         // Setup a scene and place a banner in it
         /*b = new Banner(PVR_LIST_TR_POLY, txr);
@@ -86,28 +103,26 @@ class MyMenu : public GenericMenu, public RefCnt
             m_cursel--;
 
             if (m_cursel < 0)
-                m_cursel += 6;
+                m_cursel += 4;
 
             break;
         case Event::KeyDown:
             m_cursel++;
 
-            if (m_cursel >= 6)
-                m_cursel -= 6;
+            if (m_cursel >= 4)
+                m_cursel -= 4;
 
             break;
         case Event::KeySelect:
-            printf("user selected option %d\n", m_cursel);
 
-            if (m_cursel == 5)
+            if (m_cursel == 4)
                 startExit();
-
             break;
         default:
             break;
         }
 
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 4; i++)
         {
             if (i == m_cursel)
                 m_options[i]->setTint(m_white);
@@ -135,9 +150,10 @@ class MyMenu : public GenericMenu, public RefCnt
 
     Color m_white, m_gray;
     RefPtr<Label> m_options[6];
-    RefPtr<Label> lbl2;
+    RefPtr<Label> title_label, disc_label;
     RefPtr<Texture> txr;
     RefPtr<Banner> b;
+    RefPtr<UpdateGD> updateGD;
     int m_cursel;
 };
 
