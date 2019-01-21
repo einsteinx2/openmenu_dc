@@ -21,18 +21,17 @@ extern uint8 romdisk[];
 KOS_INIT_FLAGS(INIT_DEFAULT);
 KOS_INIT_ROMDISK(romdisk);
 
+extern void runit();
+
 /* __FROM PSO PATCHER__ */
 #define BIN_BASE    0xac010000
 #define IP_BASE     0xac008000
 #define SYS_BASE    0x8c008000
 #define IP_LEN      32768
 
-extern void boot_stub(void *, uint32) __attribute__((noreturn));
-extern uint32 boot_stub_len;
-
 extern unsigned long end;
-static uint8 *ip_bin = (uint8 *)IP_BASE;
-static uint8 *bin = (uint8 *)BIN_BASE;
+static uint8 *ip_bin = (uint8_t *)IP_BASE;
+static uint8 *bin = (uint8_t *)BIN_BASE;
 /* __END__ */
 
 class MyMenu : public GenericMenu, public RefCnt
@@ -86,7 +85,7 @@ class MyMenu : public GenericMenu, public RefCnt
         m_scene->subAdd(disc_label);
                 
         status_label = new Label(fnt, "Welcome to openMenu!", 24, true, true);
-        status_label->setTranslate(Vector(-320, 220, 0));
+        status_label->setTranslate(Vector(0, 220, 0));
         status_label->setTint(m_red);
         m_scene->subAdd(status_label);
 
@@ -116,13 +115,12 @@ class MyMenu : public GenericMenu, public RefCnt
     void updateDiscLabel()
     {
         disc_label->setText(updateGD->getTitle());
-        title_label->setText(updateGD->getBinary());
+        status_label->setText(updateGD->getBinary());
     }
 
     void AttemptToRun(){
         /* __From PSO Patcher__ */
-
-        int i, fd, cur = 0, rsz;
+        int fd, cur = 0, rsz;
         /* Read the binary in. This reads directly into the correct address. */
         if((fd = open(updateGD->getBinary(), O_RDONLY)) < 0){
 
@@ -134,10 +132,7 @@ class MyMenu : public GenericMenu, public RefCnt
         }
 
         close(fd);
-        /* The binary is in place, so let's try to boot it, shall we? */
-        void (*f)(void) __attribute__((noreturn));
-        f = (void *)((uint32)(&boot_stub) | 0xa0000000);
-        f();
+        runit();
     }
 
     virtual void inputEvent(const Event &evt)
@@ -211,6 +206,10 @@ class MyMenu : public GenericMenu, public RefCnt
         m = new ExpXYMover(0, 1.4, 0, 400);
         m->triggerAdd(new Death());
         m_options[2]->animAdd(m);
+
+        m = new ExpXYMover(0, 1.6, 0, 400);
+        m->triggerAdd(new Death());
+        m_options[3]->animAdd(m);
         GenericMenu::startExit();
     }
 
@@ -243,8 +242,6 @@ int main(int argc, char **argv)
     // Do the menu
     mm->doMenu();
 
-    arch_exit();
     // Ok, we're all done! The RefPtrs will take care of mem cleanup.
-
     return 0;
 }

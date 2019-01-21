@@ -23,7 +23,7 @@ public:
 private:
 	uint8_t secbuf[2048];
 	char game_title[64];
-	char binary_name[17];
+	char binary_name[21];
 	CDROM_TOC toc;
 
 	int is_dc_img();
