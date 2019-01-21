@@ -14,25 +14,41 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 CPPFLAGS ?= $(INC_FLAGS) -MMD -MP
 
+default: $(BUILD_DIR)/$(TARGET_EXEC)
 
-$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
-	$(CC) $(OBJS) -o $@ -Xlinker -Map=MAP_bin1.map $(DREAM_CFLAGS) $(DREAM_LDFLAGS)
+$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS) $(BUILD_DIR)/romdisk.o
+	$(CXX) $(OBJS) $(BUILD_DIR)/romdisk.o -o $@ -Xlinker  $(DREAM_CFLAGS) $(DREAM_CPPFLAGS) $(DREAM_LDFLAGS)
 	sh-elf-objcopy -R .stack -O binary $@ $(basename $@)
+	
+.PHONY: scramble
+scramble:
+	scramble $(BUILD_DIR)/$(TARGET_EXEC) $(BUILD_DIR)/1ST_READ.BIN
 	
 # assembly
 $(BUILD_DIR)/%.s.o: %.s
-	$(MKDIR_P) $(dir $@)
-	$(AS) -little -c $< -o $@
+	@$(MKDIR_P) $(dir $@)
+	@echo $(AS) $<
+	@$(AS) -little -c $< -o $@
 
 # c source
 $(BUILD_DIR)/%.c.o: %.c
-	$(MKDIR_P) $(dir $@)
-	$(CC) -fomit-frame-pointer $(DREAM_CFLAGS) $(DREAM_LDFLAGS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@$(MKDIR_P) $(dir $@)
+	@echo $(CC) $<
+	@$(CC) -fomit-frame-pointer $(DREAM_CFLAGS) $(DREAM_CPPFLAGS) $(DREAM_LDFLAGS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # c++ source
 $(BUILD_DIR)/%.cpp.o: %.cpp
-	$(MKDIR_P) $(dir $@)
-	$(CXX) -fomit-frame-pointer $(DREAM_CFLAGS) $(DREAM_LDFLAGS) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+	@$(MKDIR_P) $(dir $@)
+	@echo $(CXX) $<
+	@$(CXX) -fomit-frame-pointer $(DREAM_CFLAGS) $(DREAM_CPPFLAGS) $(DREAM_LDFLAGS) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+	
+# romdisk rules
+$(BUILD_DIR)/romdisk.img:
+	@$(KOS_GENROMFS) -f $(BUILD_DIR)/romdisk.img -d romdisk -v
+
+$(BUILD_DIR)/romdisk.o: $(BUILD_DIR)/romdisk.img
+	@echo "Generated romdisk"
+	@$(KOS_BASE)/utils/bin2o/bin2o $(BUILD_DIR)/romdisk.img romdisk $(BUILD_DIR)/romdisk.o
 
 .PHONY: clean
 
