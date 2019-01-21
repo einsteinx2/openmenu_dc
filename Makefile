@@ -18,31 +18,31 @@ default: $(BUILD_DIR)/$(TARGET_EXEC)
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS) $(BUILD_DIR)/romdisk.o
 	@echo "Linking $(TARGET_EXEC)"
-	@$(CXX) $(OBJS) $(BUILD_DIR)/romdisk.o -o $@ -Xlinker  $(DREAM_CFLAGS) $(DREAM_CPPFLAGS) $(DREAM_LDFLAGS)
+	@$(CXX) $(OBJS) $(BUILD_DIR)/romdisk.o -o $@ $(DREAM_LIBS)
 	@echo "Converting $(TARGET_EXEC) to Binary"
 	@sh-elf-objcopy -R .stack -O binary $@ $(basename $@)
 	
 .PHONY: scramble
-scramble:
-	scramble $(BUILD_DIR)/$(TARGET_EXEC) $(BUILD_DIR)/1ST_READ.BIN
+scramble: $(BUILD_DIR)/$(TARGET_EXEC)
+	scramble $(BUILD_DIR)/$(basename $(TARGET_EXEC)) $(BUILD_DIR)/1ST_READ.BIN
 	
 # assembly
 $(BUILD_DIR)/%.s.o: %.s
 	@$(MKDIR_P) $(dir $@)
 	@echo $(AS) $<
-	@$(AS) -little -c $< -o $@
+	@$(AS) -c $< -o $@
 
 # c source
 $(BUILD_DIR)/%.c.o: %.c
 	@$(MKDIR_P) $(dir $@)
 	@echo $(CC) $<
-	@$(CC) -fomit-frame-pointer $(DREAM_CFLAGS) $(DREAM_CPPFLAGS) $(DREAM_LDFLAGS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@$(CC) -c $< -o $@
 
 # c++ source
 $(BUILD_DIR)/%.cpp.o: %.cpp
 	@$(MKDIR_P) $(dir $@)
 	@echo $(CXX) $<
-	@$(CXX) -fomit-frame-pointer $(DREAM_CFLAGS) $(DREAM_CPPFLAGS) $(DREAM_LDFLAGS) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+	@$(CXX) -c $< -o $@
 	
 # romdisk rules
 $(BUILD_DIR)/romdisk.img:
