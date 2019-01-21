@@ -13,6 +13,7 @@
 extern "C"
 {
 #include "addons/pvr-texture.h"
+extern void runit(void);
 }
 
 #include "addons/updateGD.h"
@@ -21,7 +22,7 @@ extern uint8 romdisk[];
 KOS_INIT_FLAGS(INIT_DEFAULT);
 KOS_INIT_ROMDISK(romdisk);
 
-extern void runit();
+
 
 /* __FROM PSO PATCHER__ */
 #define BIN_BASE    0xac010000
@@ -123,9 +124,9 @@ class MyMenu : public GenericMenu, public RefCnt
         int fd, cur = 0, rsz;
         /* Read the binary in. This reads directly into the correct address. */
         if((fd = open(updateGD->getBinary(), O_RDONLY)) < 0){
-
-        }
             return;
+        }
+
 
         while((rsz = read(fd, bin + cur, 2048)) > 0) {
             cur += rsz;
@@ -243,5 +244,6 @@ int main(int argc, char **argv)
     mm->doMenu();
 
     // Ok, we're all done! The RefPtrs will take care of mem cleanup.
+    arch_menu();
     return 0;
 }

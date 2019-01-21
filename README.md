@@ -9,7 +9,11 @@ These instructions will get you a copy of the project up and running on your loc
 ### Prerequisites
 
 What things you need to install the software and how to install them
-
+Font Generation: ```
+.\ttf2txf -o revenant.txf -s 22 -w 256 -h 25
+6 -c "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()-_=+[]{}|;:,.<>~
+?/\" revenant.TTF
+```
 ```
 Give examples
 ```

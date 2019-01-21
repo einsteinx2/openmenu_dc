@@ -43,11 +43,16 @@ int UpdateGD::is_psx_img()
     return 0;
 }
 
+#define ERR_OK          0   /**< \brief No error */
+
 void UpdateGD::read_disc_info()
 {
-    int status = -1, disc_type = -1;
+    int status = -1, disc_type = -1, rv = -1;
 
-    cdrom_reinit();
+    /* Reinitialize the drive */
+    do {
+        rv = cdrom_reinit();
+    } while(rv != ERR_OK);
 
     do
     {
