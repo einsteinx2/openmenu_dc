@@ -129,17 +129,23 @@ class MyMenu : public GenericMenu, public RefCnt
             sz = 2048;
             cdrom_read_sectors((uint16_t *)(ip_bin + i * 2048), data_fad + i, sz);
         }
-        int fd, cur = 0, rsz;
+        FILE * bin_file;
+        //int cur = 0, rsz;
         /* Read the binary in. This reads directly into the correct address. */
-        if((fd = fs_open(updateGD->getBinary(), O_RDONLY)) < 0){
-            return;
-        }
+        bin_file = fopen("/cd/1ST_READ.BIN"/*updateGD->getBinary()*/, "rb");
+
+        fseek ( bin_file , 0, SEEK_END );
+        int lSize = ftell( bin_file );
+        fseek ( bin_file , 0, SEEK_SET );
+
         status_label->setText("Step 1.");
-        while((rsz = fs_read(fd, bin + cur, 2048)) > 0) {
+        /*while((rsz = fs_read(fd, bin + cur, 2048)) > 0) {
             cur += rsz;
-        }
+        }*/
+        fread ( bin, 1, lSize, bin_file );
         status_label->setText("Step 2.");
-        close(fd);
+        fclose(bin_file);
+        //arch_exec( bin, lSize );
         runit();
         status_label->setText("returned?");
     }
