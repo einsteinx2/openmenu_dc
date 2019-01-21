@@ -92,6 +92,11 @@ class MyMenu : public GenericMenu, public RefCnt
     {
     }
 
+    void updateDiscLabel()
+    {
+        disc_label->setText(updateGD->getTitle());
+    }
+
     virtual void inputEvent(const Event &evt)
     {
         if (evt.type != Event::EvtKeypress)
@@ -114,10 +119,23 @@ class MyMenu : public GenericMenu, public RefCnt
 
             break;
         case Event::KeySelect:
-
-            if (m_cursel == 4)
+            switch (m_cursel)
+            {
+            case 0:
+                updateGD->prev();
+                updateDiscLabel();
+                break;
+            case 1:
+                updateGD->next();
+                updateDiscLabel();
+                break;
+            case 2:
+                /* run the game */
+                break;
+            case 3:
                 startExit();
-            break;
+                break;
+            }
         default:
             break;
         }

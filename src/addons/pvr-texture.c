@@ -52,15 +52,15 @@ pvr_ptr_t TextureLoadPVR(char *fname, unsigned char isMipMapped, unsigned char g
 
     /* Allocate Some Memory for the texture. If we are using Open GL to build the MipMap,
        we need to allocate enough space to hold the MipMap texture levels. */
-    if (!isMipMapped && glMipMap)
+    /*if (!isMipMapped && glMipMap)
     {
         //TEX0 = malloc(glKosMipMapTexSize(texW, texH));
     }
     else
-    {
+    {*/
         image_data = (unsigned short *)malloc(texSize);
         texture_pointer = pvr_mem_malloc(texSize);
-    }
+    //}
 
     fread(image_data, 1, texSize, tex); /* Read in the PVR texture data */
 
