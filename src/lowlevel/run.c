@@ -1,12 +1,17 @@
 
-extern void boot_stub(void *, unsigned int) __attribute__((noreturn));
-extern unsigned int boot_stub_len;
+#include <kos.h>
+
+extern void clear_and_load(void *) __attribute__((noreturn));
 
 void runit() __attribute__((noreturn));
-
 void runit(){ 
         /* The binary is in place, so let's try to boot it, shall we? */
         void (*f)(void) __attribute__((noreturn));
-        f = (void *)((unsigned int)(&boot_stub) | 0xa0000000);
+        f = (void *)(&clear_and_load);
         f();
+}
+
+void runit_kos(uint32_t* bin, uint32_t bin_size) __attribute__((noreturn));
+void runit_kos( uint32_t* bin, uint32_t bin_size){
+        arch_exec( bin, bin_size );
 }

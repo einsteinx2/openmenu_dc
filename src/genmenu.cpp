@@ -13,7 +13,6 @@
 extern "C"
 {
 #include "addons/pvr-texture.h"
-    extern void runit(void);
 }
 
 #include "addons/updateGD.h"
@@ -21,8 +20,6 @@ extern "C"
 extern uint8 romdisk[];
 KOS_INIT_FLAGS(INIT_DEFAULT);
 KOS_INIT_ROMDISK(romdisk);
-
-static uint8_t *ip_bin = (uint8_t *)0xac008000;
 
 class MyMenu : public GenericMenu, public RefCnt
 {
@@ -52,7 +49,7 @@ class MyMenu : public GenericMenu, public RefCnt
         m_options[1]->setTint(m_gray);
         m_scene->subAdd(m_options[1]);
 
-        m_options[2] = new Label(fnt, "Start", 24, true, true);
+        m_options[2] = new Label(fnt, "-------", 24, true, true);
         m_options[2]->setTranslate(Vector(0, 400 + 400 + 400, 0));
         m_options[2]->animAdd(new LogXYMover(0, -160 + 60));
         m_options[2]->setTint(m_gray);
@@ -96,6 +93,7 @@ class MyMenu : public GenericMenu, public RefCnt
         b->setTranslate(Vector(0, 0, 0));
         m_scene->subAdd(b);*/
         m_cursel = 0;
+        stage = 9;
     }
 
     virtual ~MyMenu()
@@ -106,72 +104,8 @@ class MyMenu : public GenericMenu, public RefCnt
     {
         disc_label->setText(updateGD->getTitle());
         status_label->setText(updateGD->getBinary());
-    }
-
-    void AttemptToRun()
-    {
-        uint32_t sz = 408, data_fad;
-        int i;
-        data_fad = 45150; //gd_locate_data_track(&toc);
-        for (i = 0; i < 16; ++i)
-        {
-            sz = 2048;
-            cdrom_read_sectors((uint16_t *)(ip_bin + i * 2048), data_fad + i, sz);
-        }
-        /*int fd, cur = 0, rsz;
-        // Read the binary in. This reads directly into the correct address. 
-        if((fd = fs_open(updateGD->getBinary(), O_RDONLY)) < 0){
-            return;
-        }
-        status_label->setText("Step 1.");
-        while((rsz = fs_read(fd, bin + cur, 2048)) > 0) {
-            cur += rsz;
-        }
-        status_label->setText("Step 2.");
-        close(fd);
-        runit();
-        status_label->setText("returned?");*/
-        int status = -1, disc_type = -1;
-        do
-        {
-            cdrom_get_status(&status, &disc_type);
-
-            if (status == CD_STATUS_PAUSED ||
-                status == CD_STATUS_STANDBY ||
-                status == CD_STATUS_PLAYING)
-            {
-                break;
-            }
-        } while (1);
-        #define DEBUG
-#ifdef DEBUG
-        printf("updateGD->getBinary() = [%s]\n", updateGD->getBinary());
-        fflush(stdout);
-#endif
-        file_t f = fs_open(updateGD->getBinary(), O_RDONLY);
-        void *gd_binary;
-#ifdef DEBUG
-        assert(f);
-        printf("Step 1.\n");
-        fflush(stdout);
-#endif
-
-        gd_binary = fs_mmap(f);
-#ifdef DEBUG
-        assert(gd_binary);
-        printf("Step 1.\n");
-        fflush(stdout);
-#endif
-
-#ifdef DEBUG
-        char msg[50];
-        sprintf(msg, "BINARY mapped at %08x, jumping to it!\n", gd_binary);
-        printf(msg);
-        fflush(stdout);
-#endif
-#undef DEBUG
-
-        arch_exec(gd_binary, fs_total(f));
+        m_options[2]->setText("Start");
+        stage = 0;
     }
 
     virtual void inputEvent(const Event &evt)
@@ -210,8 +144,44 @@ class MyMenu : public GenericMenu, public RefCnt
                 break;
             case 2:
                 status_label->setText("Trying to Execute disc!");
-                /* run the game */
-                AttemptToRun();
+                switch (stage)
+                {
+                case 9:
+                    break;
+                case 0:
+                    if (!updateGD->readIPtoMem())
+                    {
+                        m_options[2]->setText("Read IP to memory");
+                    }
+                    else
+                    {
+                        m_options[2]->setText("Error!");
+                    }
+                    stage++;
+                    break;
+                case 1:
+                    if (!updateGD->readBinaryToMem())
+                    {
+                        m_options[2]->setText("Read Binary to memory");
+                    }
+                    else
+                    {
+                        m_options[2]->setText("Error!");
+                    }
+                    stage++;
+                    break;
+                case 2:
+                    m_options[2]->setText("Execute!");
+                    status_label->setText("Executing!");
+                    stage++;
+                    break;
+                case 3:
+                    /* Should Work but Broken */
+                    updateGD->run();
+                    //Slower but working at the moment
+                    updateGD->run_alt();
+                    break;
+                }
                 break;
             case 3:
                 status_label->setText("Exiting!");
@@ -259,6 +229,9 @@ class MyMenu : public GenericMenu, public RefCnt
     RefPtr<Banner> b;
     RefPtr<UpdateGD> updateGD;
     int m_cursel;
+
+  private:
+    char stage;
 };
 
 int main(int argc, char **argv)

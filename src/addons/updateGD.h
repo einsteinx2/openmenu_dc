@@ -5,11 +5,13 @@
 extern "C"
 {
 #include "../gdemu_sdk.h"
+    extern void runit(void);
+    extern void runit_kos(uint32_t *bin, uint32_t bin_size);
 }
 
 class UpdateGD : public Drawable
 {
-public:
+  public:
 	UpdateGD();
 	virtual ~UpdateGD();
 
@@ -20,7 +22,13 @@ public:
 	void next();
 	void prev();
 
-private:
+	int readIPtoMem();
+	int readBinaryToMem();
+
+	void run();
+	void run_alt();
+
+  private:
 	uint8_t secbuf[2048];
 	char game_title[64];
 	char binary_name[21];
@@ -29,6 +37,12 @@ private:
 	int is_dc_img();
 	int is_psx_img();
 	void read_disc_info();
+	int find_gdrom_data_track();
+
+	int status;
+	int disc_type;
+	int rv;
+	int bin_size;
 };
 
 #endif /* __UPDATE_GD_H */
