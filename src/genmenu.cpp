@@ -117,6 +117,10 @@ class MyMenu : public GenericMenu, public RefCnt
         {
         case Event::KeyUp:
             m_cursel--;
+            if (stage == 9 && m_cursel == 3)
+            {
+                m_cursel--;
+            }
 
             if (m_cursel < 0)
                 m_cursel += 4;
@@ -124,6 +128,10 @@ class MyMenu : public GenericMenu, public RefCnt
             break;
         case Event::KeyDown:
             m_cursel++;
+            if (stage == 9 && m_cursel == 3)
+            {
+                m_cursel++;
+            }
 
             if (m_cursel >= 4)
                 m_cursel -= 4;
@@ -177,7 +185,7 @@ class MyMenu : public GenericMenu, public RefCnt
                     break;
                 case 3:
                     /* Should Work but Broken */
-                    updateGD->run();
+                    /* updateGD->run(); */
                     //Slower but working at the moment
                     updateGD->run_alt();
                     break;
