@@ -84,7 +84,7 @@ int UpdateGD::readBinaryToMem()
     FILE* fd;
     int cur = 0, rsz = 0;
     /* Read the binary in. This reads directly into the correct address. */
-    fd = fopen("/cd/2ST_READ.BIN", "rb");
+    fd = fopen(binary_name, "rb");
     printf("Reading BINARY\n");
     /* Open the input bin file */
     assert( fd);
