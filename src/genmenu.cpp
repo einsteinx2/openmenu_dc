@@ -151,7 +151,6 @@ class MyMenu : public GenericMenu, public RefCnt
                 updateDiscLabel();
                 break;
             case 2:
-                status_label->setText("Trying to Execute disc!");
                 switch (stage)
                 {
                 case 9:
@@ -166,8 +165,8 @@ class MyMenu : public GenericMenu, public RefCnt
                         m_options[2]->setText("Error!");
                     }
                     stage++;
-                    break;
-                case 1:
+                    //break;
+                //case 1:
                     if (!updateGD->readBinaryToMem())
                     {
                         m_options[2]->setText("Read Binary to memory");
@@ -177,13 +176,13 @@ class MyMenu : public GenericMenu, public RefCnt
                         m_options[2]->setText("Error!");
                     }
                     stage++;
-                    break;
-                case 2:
+                    //break;
+                //case 2:
                     m_options[2]->setText("Execute!");
                     status_label->setText("Executing!");
                     stage++;
-                    break;
-                case 3:
+                    //break;
+                //case 3:
                     /* Should Work but Broken */
                     /* updateGD->run(); */
                     //Slower but working at the moment

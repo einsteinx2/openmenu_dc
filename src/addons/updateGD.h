@@ -1,12 +1,13 @@
 #ifndef __UPDATE_GD_H
 #define __UPDATE_GD_H
-
+#include <kos.h>
 #include <tsu/drawable.h>
+
 extern "C"
 {
-#include "../gdemu_sdk.h"
-    extern void runit(void);
-    extern void runit_kos(uint32_t *bin, uint32_t bin_size);
+	#include "../gdemu_sdk.h"
+	extern void runit(void);
+	extern void runit_kos(uint32_t *bin, uint32_t bin_size);
 }
 
 class UpdateGD : public Drawable
@@ -37,12 +38,12 @@ class UpdateGD : public Drawable
 	int is_dc_img();
 	int is_psx_img();
 	void read_disc_info();
-	int find_gdrom_data_track();
 
 	int status;
 	int disc_type;
 	int rv;
 	int bin_size;
+	uint32_t sz;
 };
 
 #endif /* __UPDATE_GD_H */

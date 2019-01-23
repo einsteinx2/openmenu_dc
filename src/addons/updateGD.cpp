@@ -1,5 +1,11 @@
 #include "updateGD.h"
 
+extern "C"
+{
+#include "../lowlevel/cdfs.h"
+#include "../lowlevel/cdrom.h"
+}
+
 static uint8_t *ip_bin = (uint8_t *)0xAC008000;
 static uint32_t *bin = (uint32_t *)0xAC010000;
 
@@ -8,6 +14,7 @@ UpdateGD::UpdateGD()
     status = -1;
     disc_type = -1;
     rv = -1;
+    sz = 2048;
 }
 UpdateGD::~UpdateGD()
 {
@@ -55,7 +62,7 @@ int UpdateGD::readIPtoMem()
 {
     do
     {
-        cdrom_get_status(&status, &disc_type);
+        gd_cdrom_get_status(&status, &disc_type);
 
         if (status == CD_STATUS_PAUSED ||
             status == CD_STATUS_STANDBY ||
@@ -67,8 +74,13 @@ int UpdateGD::readIPtoMem()
 
     if (disc_type == CD_GDROM)
     {
-        cdrom_read_toc(&toc, 1);
-        cdrom_read_sectors((void *)ip_bin, 45150, 16);
+        gd_cdrom_read_toc(&toc, 1);
+        int i;
+        for (i = 0; i < 16; ++i)
+        {
+            sz = 2048;
+            gd_read_sector(gd_find_datatrack(&toc) + i, (uint16_t *)(ip_bin + i * 2048), &sz);
+        }
     }
     else
     {
@@ -80,75 +92,97 @@ int UpdateGD::readIPtoMem()
 }
 int UpdateGD::readBinaryToMem()
 {
+
+    char files[256][256];
+    char filename[256];
+    char *ext;
+    file_t d;
+    dirent_t *de;
+    DIR *gd_dir;
+    int i = 0;
+    if (disc_type == CD_GDROM)
+    {
+        gd_dir = gd_opendir("/");
+        if (!gd_dir)
+        {
+            printf("couldn't open the dir.\n");
+            return 1;
+        }
+        printf("opened the dir\n");
+
+        while ((de = gd_readdir(gd_dir)) && (i < 256))
+        {
+            memcpy(filename, de->name, 255);
+            filename[255] = 0;
+            printf("%s\n", filename);
+
+            ext = filename + strlen(filename) - 4;
+            if (!strcmp(ext, ".exe") || !strcmp(ext, ".bin") || !strcmp(ext, ".img"))
+            {
+                strcpy(files[i], filename);
+                i++;
+            }
+        }
+
+        gd_close(d);
+        printf("%d files found.\n", i);
+    }
+
+    return ERR_OK;
+
     printf("Opening BINARY\n");
-    FILE* fd;
+    FILE *fd;
+    file_t f_bin;
     int cur = 0, rsz = 0;
     /* Read the binary in. This reads directly into the correct address. */
     fd = fopen(binary_name, "rb");
-    printf("Reading BINARY\n");
-    /* Open the input bin file */
-    assert( fd);
+    printf("Reading BINARY [%s]\n", binary_name);
+    if (!fd)
+    {
+        f_bin = fs_open(binary_name, O_RDONLY);
+        if (f_bin)
+        {
 
-    /* obtain the bin file size using fseek */
-    fseek ( fd , 0, SEEK_END );
-    int bin_size = ftell   ( fd );
-    fseek ( fd , 0, SEEK_SET );
-    printf("Size of Binary %d\n", bin_size);
+            fs_seek(f_bin, 0, SEEK_END);
+            int lSize = fs_tell(f_bin);
+            fs_seek(f_bin, 0, SEEK_SET);
+            while ((rsz = fs_read(f_bin, bin + cur, 2048)) > 0)
+            {
+                cur += rsz;
+            }
+            fs_close(f_bin);
+        }
+    }
+    else
+    {
+        /* Open the input bin file */
+        assert(fd);
 
-    /* allocate the buffer, then read the file into it */
-    //unsigned int * bin_buffer = malloc( lSize );
-    assert( bin );
-    fread ( bin, 1, bin_size, fd );
-    fclose(fd);
-    printf("Read then Closed file!\n");
-    fflush(stdout);
+        /* obtain the bin file size using fseek */
+        fseek(fd, 0, SEEK_END);
+        int bin_size = ftell(fd);
+        fseek(fd, 0, SEEK_SET);
+        printf("Size of Binary %d\n", bin_size);
+
+        /* allocate the buffer, then read the file into it */
+        //unsigned int * bin_buffer = malloc( lSize );
+        assert(bin);
+        fread(bin, 1, bin_size, fd);
+        fclose(fd);
+        printf("Read then Closed file!\n");
+        fflush(stdout);
+    }
     return ERR_OK;
 }
 
-void UpdateGD::run(){
+void UpdateGD::run()
+{
     runit();
 }
 
-void UpdateGD::run_alt(){
-    runit_kos(bin, bin_size);
-}
-
-int UpdateGD::find_gdrom_data_track()
+void UpdateGD::run_alt()
 {
-    /*
-    This file is part of Sylverant PSO Patcher
-    Copyright (C) 2011, 2012, 2013 Lawrence Sebald
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License version 3 as
-    published by  the Free Software Foundation.
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-    int i, first, last;
-
-    first = TOC_TRACK(toc.first);
-    last = TOC_TRACK(toc.last);
-
-    if (first < 1 || last > 99 || first > last)
-    {
-        /* Guess that its the first High Density area track... */
-        return 45150;
-    }
-
-    for (i = first; i <= last; ++i)
-    {
-        if (TOC_CTRL(toc.entry[i - 1]) == 4)
-        {
-            return TOC_LBA(toc.entry[i - 1]);
-        }
-    }
-
-    /* Punt. */
-    return 45150;
+    runit_kos(bin, bin_size);
 }
 
 void UpdateGD::read_disc_info()
@@ -156,14 +190,14 @@ void UpdateGD::read_disc_info()
     int i;
 
     /* Reinitialize the drive */
-    do
-    {
-        rv = cdrom_reinit();
-    } while (rv != ERR_OK);
+    //do
+    //{
+    rv = gdrom_reinit();
+    //} while (rv != ERR_OK);
 
     do
     {
-        cdrom_get_status(&status, &disc_type);
+        gd_cdrom_get_status(&status, &disc_type);
 
         if (status == CD_STATUS_PAUSED ||
             status == CD_STATUS_STANDBY ||
@@ -175,8 +209,13 @@ void UpdateGD::read_disc_info()
 
     if (disc_type == CD_GDROM)
     {
-        cdrom_read_toc(&toc, 1);
-        cdrom_read_sectors((void *)secbuf, find_gdrom_data_track(), 1);
+        gd_cdrom_read_toc(&toc, 1);
+        int i;
+        for (i = 0; i < 16; ++i)
+        {
+            sz = 2048;
+            gd_read_sector(gd_find_datatrack(&toc) + i, (uint16_t *)(ip_bin + i * 2048), &sz);
+        }
     }
     else
     {
@@ -204,16 +243,14 @@ void UpdateGD::read_disc_info()
             strcpy(game_title, "Unknown disc");
         }
     }
-    /* Figure out what the boot file is called */
-    sprintf(binary_name, "%s", "/cd/");
-    memcpy(binary_name + 4, (char *)secbuf + 0x60, 16);
-    binary_name[16 + 4] = 0;
+    memcpy(binary_name, (char *)secbuf + 0x60, 16);
+    binary_name[16] = 0;
     /* Remove any spaces at the end of the binary_name */
     for (i = 0; i < 16; ++i)
     {
-        if (binary_name[i + 4] == ' ')
+        if (binary_name[i] == ' ')
         {
-            binary_name[i + 4] = 0;
+            binary_name[i] = 0;
             break;
         }
     }

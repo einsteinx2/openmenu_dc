@@ -36,13 +36,13 @@ $(BUILD_DIR)/%.s.o: %.s
 $(BUILD_DIR)/%.c.o: %.c
 	@$(MKDIR_P) $(dir $@)
 	@echo $(CC) $< 
-	@$(CC) -c $< -o $@ -Wl,-Ttext=0x8CE00000
+	@$(CC) -c $< -o $@ -Wl,-Ttext=0x8CE00000 -std=c99
 
 # c++ source
 $(BUILD_DIR)/%.cpp.o: %.cpp
 	@$(MKDIR_P) $(dir $@)
 	@echo $(CXX) $<
-	@$(CXX) -c $< -o $@ -Wl,-Ttext=0x8CE00000
+	@$(CXX) -c $< -o $@ -Wl,-Ttext=0x8CE00000 
 	
 # romdisk rules
 $(BUILD_DIR)/romdisk.img:
