@@ -152,8 +152,15 @@ _gd_gd_read_toc:
     nop
     .balign     4
 .toc_cmd_buf:
-    .byte       0x14, 0, 0, (408 >> 8)
-    .byte       (408 & 0xFF), 0, 0, 0
+# verify at 8ce00705
+# 154              	.toc_cmd_buf:
+# 155 00d8 14000001 	    .byte       0x14, 0, 0, (408 >> 8)
+# 156 00dc 98000000 	    .byte       (408 & 0xFF), 0, 0, 0
+# 157 00e0 00000000 	    .byte       0, 0, 0, 0
+    #0x14, 0x00, 0x00, 0x01 BUT shoould be 0x14 0x01
+    .byte       0x14, 0x01, 0, 0x01
+     #0x98 0x00, 0x00, 0x00
+    .byte       0x98, 0, 0, 0
     .byte       0, 0, 0, 0
 
 _gd_read_sector:
