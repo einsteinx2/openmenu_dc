@@ -13,6 +13,7 @@
 extern "C"
 {
 #include "addons/pvr-texture.h"
+#include "lowlevel/cdrom.h"
 }
 
 #include "addons/updateGD.h"
@@ -94,6 +95,8 @@ class MyMenu : public GenericMenu, public RefCnt
         m_scene->subAdd(b);*/
         m_cursel = 0;
         stage = 9;
+        
+        gd_cdrom_init();
     }
 
     virtual ~MyMenu()
@@ -103,7 +106,9 @@ class MyMenu : public GenericMenu, public RefCnt
     void updateDiscLabel()
     {
         disc_label->setText(updateGD->getTitle());
-        status_label->setText(updateGD->getBinary());
+        char name[20];
+        sprintf(name, "[%s]",updateGD->getBinary());
+        status_label->setText(name);
         m_options[2]->setText("Start");
         stage = 0;
     }
@@ -117,7 +122,7 @@ class MyMenu : public GenericMenu, public RefCnt
         {
         case Event::KeyUp:
             m_cursel--;
-            if (stage == 9 && m_cursel == 3)
+            if (stage == 9 && m_cursel == 2)
             {
                 m_cursel--;
             }
@@ -128,7 +133,7 @@ class MyMenu : public GenericMenu, public RefCnt
             break;
         case Event::KeyDown:
             m_cursel++;
-            if (stage == 9 && m_cursel == 3)
+            if (stage == 9 && m_cursel == 2)
             {
                 m_cursel++;
             }
@@ -164,9 +169,10 @@ class MyMenu : public GenericMenu, public RefCnt
                     {
                         m_options[2]->setText("Error!");
                     }
+                    fflush(stdout);
                     stage++;
-                    //break;
-                //case 1:
+                    break;
+                case 1:
                     if (!updateGD->readBinaryToMem())
                     {
                         m_options[2]->setText("Read Binary to memory");
@@ -175,22 +181,27 @@ class MyMenu : public GenericMenu, public RefCnt
                     {
                         m_options[2]->setText("Error!");
                     }
+                    fflush(stdout);
                     stage++;
-                    //break;
-                //case 2:
+                    break;
+                case 2:
                     m_options[2]->setText("Execute!");
                     status_label->setText("Executing!");
                     stage++;
-                    //break;
-                //case 3:
+                    break;
+                case 3:
                     /* Should Work but Broken */
-                    /* updateGD->run(); */
+                    /*updateGD->run();*/
                     //Slower but working at the moment
                     updateGD->run_alt();
                     break;
                 }
                 break;
             case 3:
+                if (stage == 3)
+                {
+                    updateGD->run();
+                }
                 status_label->setText("Exiting!");
                 startExit();
                 break;

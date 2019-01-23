@@ -241,7 +241,7 @@ int gd_cdrom_read_toc(CDROM_TOC *toc_buffer, int session)
 }
 
 /* Initialize: assume no threading issues */
-int gd_cdrom_init()
+int __attribute__((optimize("O0"))) gd_cdrom_init()
 {
     unsigned int p;
     volatile unsigned int *react = (unsigned int *)0xa05f74e4,

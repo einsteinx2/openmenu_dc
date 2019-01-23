@@ -31,8 +31,8 @@ class UpdateGD : public Drawable
 
   private:
 	uint8_t secbuf[2048];
-	char game_title[64];
-	char binary_name[21];
+	char game_title[33];
+	char binary_name[16];
 	CDROM_TOC toc;
 
 	int is_dc_img();

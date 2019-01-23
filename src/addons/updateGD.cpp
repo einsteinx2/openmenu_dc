@@ -8,13 +8,14 @@ extern "C"
 
 static uint8_t *ip_bin = (uint8_t *)0xAC008000;
 static uint32_t *bin = (uint32_t *)0xAC010000;
+static uint32_t *bin_8 = (uint32_t *)0x8C010000;
 
 UpdateGD::UpdateGD()
 {
     status = -1;
     disc_type = -1;
     rv = -1;
-    sz = 2048;
+    sz = 408;
 }
 UpdateGD::~UpdateGD()
 {
@@ -60,22 +61,10 @@ int UpdateGD::is_psx_img()
 
 int UpdateGD::readIPtoMem()
 {
-    do
-    {
-        gd_cdrom_get_status(&status, &disc_type);
-
-        if (status == CD_STATUS_PAUSED ||
-            status == CD_STATUS_STANDBY ||
-            status == CD_STATUS_PLAYING)
-        {
-            break;
-        }
-    } while (1);
-
+    uint32_t i = 1;
     if (disc_type == CD_GDROM)
     {
-        gd_cdrom_read_toc(&toc, 1);
-        int i;
+        printf("Read IP.BIN from GDROM\n");
         for (i = 0; i < 16; ++i)
         {
             sz = 2048;
@@ -84,78 +73,68 @@ int UpdateGD::readIPtoMem()
     }
     else
     {
+        printf("Loading IP.BIN from CDI (Homebrew/Piracy)!\n");
         cdrom_read_toc(&toc, 0);
         cdrom_read_sectors((void *)ip_bin, cdrom_locate_data_track(&toc), 16);
     }
     dcache_flush_range((uint32_t)&ip_bin, 32768);
+    fflush(stdout);
     return ERR_OK;
 }
 int UpdateGD::readBinaryToMem()
 {
-
-    char files[256][256];
-    char filename[256];
-    char *ext;
-    file_t d;
-    dirent_t *de;
-    DIR *gd_dir;
-    int i = 0;
-    if (disc_type == CD_GDROM)
+    FILE *fd;
+    int f_bin;
+    printf("Reading BINARY [%s]....\n", binary_name);
+    switch (disc_type)
     {
-        gd_dir = gd_opendir("/");
-        if (!gd_dir)
-        {
-            printf("couldn't open the dir.\n");
-            return 1;
-        }
-        printf("opened the dir\n");
-
-        while ((de = gd_readdir(gd_dir)) && (i < 256))
-        {
-            memcpy(filename, de->name, 255);
-            filename[255] = 0;
-            printf("%s\n", filename);
-
-            ext = filename + strlen(filename) - 4;
-            if (!strcmp(ext, ".exe") || !strcmp(ext, ".bin") || !strcmp(ext, ".img"))
-            {
-                strcpy(files[i], filename);
-                i++;
-            }
-        }
-
-        gd_close(d);
-        printf("%d files found.\n", i);
+    case CD_GDROM:
+        printf("GD-ROM Routine\n");
+        break;
+    case CD_CDROM:
+        printf("CD-R Routine\n");
+        break;
+    case CD_CDROM_XA:
+        printf("CD-R-XA Routine\n");
+        break;
+    case CD_CDI:
+        printf("CD-CDI Routine\n");
+        break;
+    default:
+        printf("NO CLUE WHAT\n");
+        break;
     }
 
-    return ERR_OK;
-
-    printf("Opening BINARY\n");
-    FILE *fd;
-    file_t f_bin;
-    int cur = 0, rsz = 0;
-    /* Read the binary in. This reads directly into the correct address. */
-    fd = fopen(binary_name, "rb");
-    printf("Reading BINARY [%s]\n", binary_name);
-    if (!fd)
+    if (disc_type == CD_GDROM)
     {
-        f_bin = fs_open(binary_name, O_RDONLY);
-        if (f_bin)
+        int cur = 0, rsz = 0;
+        /* Read the binary in. This reads directly into the correct address. */
+        if ((f_bin = gd_open(binary_name, O_RDONLY)) < 0)
         {
-
-            fs_seek(f_bin, 0, SEEK_END);
-            int lSize = fs_tell(f_bin);
-            fs_seek(f_bin, 0, SEEK_SET);
-            while ((rsz = fs_read(f_bin, bin + cur, 2048)) > 0)
-            {
-                cur += rsz;
-            }
-            fs_close(f_bin);
+            printf("ERROR opening gd_open()!\n");
+            fflush(stdout);
+            return -1;
         }
+        while ((rsz = gd_read(f_bin, bin + cur, 2048)) > 0)
+        {
+            cur += rsz;
+#ifdef DEBUG
+            printf("Total Read bytes %d\n", cur);
+            fflush(stdout);
+#endif
+        }
+        gd_close(f_bin);
+        printf("Size of Binary %d\n", cur);
+        bin_size = cur;
+        return ERR_OK;
     }
     else
     {
+        printf("Trying to load CD-R\n");
+        char cd_bin_name[21];
+        sprintf(cd_bin_name, "/cd/%s", binary_name);
         /* Open the input bin file */
+        fd = fopen(cd_bin_name, "rb");
         assert(fd);
 
         /* obtain the bin file size using fseek */
@@ -166,13 +145,15 @@ int UpdateGD::readBinaryToMem()
 
         /* allocate the buffer, then read the file into it */
         //unsigned int * bin_buffer = malloc( lSize );
-        assert(bin);
+        //assert(bin);
         fread(bin, 1, bin_size, fd);
         fclose(fd);
-        printf("Read then Closed file!\n");
         fflush(stdout);
+        return ERR_OK;
     }
-    return ERR_OK;
+    printf("WE GOT HERE! BADDDDDDDDDDDD\n");
+    /* Shouldn't get here */
+    return -1;
 }
 
 void UpdateGD::run()
@@ -182,22 +163,15 @@ void UpdateGD::run()
 
 void UpdateGD::run_alt()
 {
-    runit_kos(bin, bin_size);
+    runit_kos(bin_8, bin_size);
 }
 
 void UpdateGD::read_disc_info()
 {
     int i;
-
-    /* Reinitialize the drive */
-    //do
-    //{
-    rv = gdrom_reinit();
-    //} while (rv != ERR_OK);
-
     do
     {
-        gd_cdrom_get_status(&status, &disc_type);
+        cdrom_get_status(&status, &disc_type);
 
         if (status == CD_STATUS_PAUSED ||
             status == CD_STATUS_STANDBY ||
@@ -207,18 +181,27 @@ void UpdateGD::read_disc_info()
         }
     } while (1);
 
+    /* Reinitialize the drive */
+    /*do
+    {
+        rv = gdrom_reinit();
+    } while (rv != ERR_OK);*/
+    gd_cdrom_init();
+
+    gd_cdrom_get_status(&status, &disc_type);
+
+    printf("Disc checking: ");
     if (disc_type == CD_GDROM)
     {
-        gd_cdrom_read_toc(&toc, 1);
-        int i;
-        for (i = 0; i < 16; ++i)
-        {
-            sz = 2048;
-            gd_read_sector(gd_find_datatrack(&toc) + i, (uint16_t *)(ip_bin + i * 2048), &sz);
-        }
+        printf("Found GDROM!\n");
+        gd_gd_read_toc((uint16_t *)&toc, &sz);
+        sz = 2048;
+        gd_read_sector(gd_find_datatrack(&toc), (uint16_t *)(secbuf), &sz);
+        memcpy((void *)ip_bin, secbuf, sz);
     }
     else
     {
+        printf("Found CD-R (Piracy/Homebrew)\n");
         cdrom_read_toc(&toc, 0);
         cdrom_read_sectors((void *)secbuf, cdrom_locate_data_track(&toc), 1);
     }
@@ -227,6 +210,16 @@ void UpdateGD::read_disc_info()
     {
         memcpy(game_title, secbuf + 128, 32);
         game_title[32] = '\0';
+        /* trim game title */
+        char *p = game_title;
+        int l = strlen(p);
+
+        while (isspace(p[l - 1]))
+            p[--l] = 0;
+        while (*p && isspace(*p))
+            ++p, --l;
+
+        memmove(game_title, p, l + 1);
     }
     else
     {
@@ -243,14 +236,16 @@ void UpdateGD::read_disc_info()
             strcpy(game_title, "Unknown disc");
         }
     }
+
+    /* setup binary name */
     memcpy(binary_name, (char *)secbuf + 0x60, 16);
-    binary_name[16] = 0;
+    binary_name[15] = '\0';
     /* Remove any spaces at the end of the binary_name */
     for (i = 0; i < 16; ++i)
     {
         if (binary_name[i] == ' ')
         {
-            binary_name[i] = 0;
+            binary_name[i] = '\0';
             break;
         }
     }

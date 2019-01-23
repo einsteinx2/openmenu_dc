@@ -1,4 +1,3 @@
-#include <kos.h>
 #include "cdfs.h"
 
 #ifndef NULL
@@ -52,7 +51,7 @@ static int gd_read_sectors(char *buf, int sec, int num)
 
   for (i = 0; i < num; ++i)
   {
-    if (gd_read_sector(sec++, (uint16 *)buf, &sz) != 2048)
+    if (gd_read_sector(sec++, (uint16_t *)buf, &sz) != 2048)
     {
       return -1;
     }
@@ -98,7 +97,7 @@ unsigned int gd_find_datatrack(CDROM_TOC *toc)
   if (first < 1 || last > 99 || first > last)
   {
     /* Guess that its the first High Density area track... */
-    return 0;
+    return 45150;
   }
 
   for (i = first; i <= last; ++i)
@@ -110,7 +109,7 @@ unsigned int gd_find_datatrack(CDROM_TOC *toc)
   }
 
   /* Punt. */
-  return 0;
+  return 45150;
 }
 
 static int gd_find_root(unsigned int *psec, unsigned int *plen)
@@ -120,6 +119,7 @@ static int gd_find_root(unsigned int *psec, unsigned int *plen)
   static CDROM_TOC toc;
   int r;
   unsigned int sec;
+
 
   if ((r = gd_init_drive()) != 0)
   {
@@ -141,7 +141,6 @@ static int gd_find_root(unsigned int *psec, unsigned int *plen)
   {
     return ERR_DIRERR;
   }
-
   /* Need to add 150 to LBA to get physical sector number */
   *psec = ntohlp(((unsigned char *)sector_buffer) + 156 + 6) + 150;
   *plen = ntohlp(((unsigned char *)sector_buffer) + 156 + 14);
@@ -209,11 +208,16 @@ int gd_open(const char *path, int oflag)
       break;
   if (fd >= MAX_OPEN_FILES)
     return ERR_NUMFILES;
+#ifdef DEBUG
+    printf("gd_open()-step1");
+#endif
 
   /* Find the root directory */
   if ((r = gd_find_root(&sec, &len)))
     return r;
-
+#ifdef DEBUG
+    printf("gd_open()-step2");
+#endif
   /* If the file we want is in a subdirectory, first locate
      this subdirectory                                      */
   while ((p = strchr0(path, '/')))
@@ -223,6 +227,9 @@ int gd_open(const char *path, int oflag)
         return r;
     path = p + 1;
   }
+#ifdef DEBUG
+  printf("gd_open()-step3");
+#endif
 
   /* Locate the file in the resulting directory */
   if (*path)
@@ -237,10 +244,16 @@ int gd_open(const char *path, int oflag)
   {
     /* If the path ends with a slash, check that it's really
        the dir that is wanted                                */
-    if (!(oflag & O_DIR))
+    if (!(oflag & O_DIR)){
+      #ifdef DEBUG
+      printf("gd_open()-ERR_NOFILE");
+      #endif
       return ERR_NOFILE;
+    }
   }
-
+  #ifdef DEBUG
+  printf("gd_open()-success");
+  #endif
   /* Fill in the file handle and return the fd */
   fh[fd].sec0 = sec;
   fh[fd].loc = 0;
@@ -266,16 +279,13 @@ int gd_pread(int fd, void *buf, unsigned int nbyte, unsigned int offset)
   /* Check that the fd is valid */
   if (fd < 0 || fd >= MAX_OPEN_FILES || fh[fd].sec0 == 0)
     return ERR_PARAM;
-
   /* If the read position is beyond the end of the file,
      return an empty read                                */
   if (offset >= fh[fd].len)
     return 0;
-
   /* If the full read would span beyond the EOF, shorten the read */
   if (offset + nbyte > fh[fd].len)
     nbyte = fh[fd].len - offset;
-
   /* Read whole sectors directly into buf if possible */
   if (nbyte >= 2048 && !(offset & 2047))
     if ((r = gd_read_sectors(buf, fh[fd].sec0 + (offset >> 11), nbyte >> 11)))
@@ -290,7 +300,6 @@ int gd_pread(int fd, void *buf, unsigned int nbyte, unsigned int offset)
     }
   else
     t = 0;
-
   /* If all data has now been read, return */
   if (!nbyte)
     return t;
@@ -328,12 +337,17 @@ int gd_pread(int fd, void *buf, unsigned int nbyte, unsigned int offset)
 int gd_read(int fd, void *buf, unsigned int nbyte)
 {
   /* Check that the fd is valid */
-  if (fd < 0 || fd >= MAX_OPEN_FILES || fh[fd].sec0 == 0)
+  if (fd < 0 || fd >= MAX_OPEN_FILES || fh[fd].sec0 == 0){
     return ERR_PARAM;
+  }
   else
   {
     /* Use pread to read at the current position */
     int r = gd_pread(fd, buf, nbyte, fh[fd].loc);
+    #ifdef DEBUG
+    printf("gd_read()-read[%d]\n",r);
+    fflush(stdout);
+    #endif
     /* Update current position */
     if (r > 0)
       fh[fd].loc += r;
@@ -384,7 +398,7 @@ DIR *gd_opendir(const char *dirname)
 int gd_closedir(DIR *dirp)
 {
   /* Unallocate the dir filehandle */
-  return close(dirp->dd_fd);
+  return gd_close(dirp->dd_fd);
 }
 
 int gd_readdir_r(DIR *dirp, struct kos_dirent *entry, struct kos_dirent **res)
