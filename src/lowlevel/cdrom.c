@@ -14,7 +14,7 @@
    anything related to CDDA. */
 
 #ifndef NULL
-#define NULL ((void*)0)
+#define NULL ((void *)0)
 #endif
 
 #include "cdrom.h"
@@ -40,43 +40,48 @@ output and look to make sure.
 
 */
 
-
 /* GD-Rom BIOS calls... named mostly after Marcus' code. None have more
    than two parameters; R7 (fourth parameter) needs to describe
    which syscall we want. */
 
-#define MAKE_SYSCALL(rs, p1, p2, idx) \
-    unsigned int *syscall_bc = (unsigned int*)0x8c0000bc; \
-    int (*syscall)() = (int (*)())(*syscall_bc); \
+#define MAKE_SYSCALL(rs, p1, p2, idx)                      \
+    unsigned int *syscall_bc = (unsigned int *)0x8c0000bc; \
+    int (*syscall)() = (int (*)())(*syscall_bc);           \
     rs syscall((p1), (p2), 0, (idx));
 
 /* Reset system functions */
-static void gdc_init_system() {
+static void gdc_init_system()
+{
     MAKE_SYSCALL(/**/, 0, 0, 3);
 }
 
 /* Submit a command to the system */
-static int gdc_req_cmd(int cmd, void *param) {
+static int gdc_req_cmd(int cmd, void *param)
+{
     MAKE_SYSCALL(return, cmd, param, 0);
 }
 
 /* Check status on an executed command */
-static int gdc_get_cmd_stat(int f, void *status) {
+static int gdc_get_cmd_stat(int f, void *status)
+{
     MAKE_SYSCALL(return, f, status, 1);
 }
 
 /* Execute submitted commands */
-static void gdc_exec_server() {
+static void gdc_exec_server()
+{
     MAKE_SYSCALL(/**/, 0, 0, 2);
 }
 
 /* Check drive status and get disc type */
-static int gdc_get_drv_stat(void *param) {
+static int gdc_get_drv_stat(void *param)
+{
     MAKE_SYSCALL(return, param, 0, 4);
 }
 
 /* Set disc access mode */
-static int gdc_change_data_type(void *param) {
+static int gdc_change_data_type(void *param)
+{
     MAKE_SYSCALL(return, param, 0, 10);
 }
 
@@ -96,59 +101,65 @@ static void gdc_abort_cmd(int cmd) {
 
 /* The CD access mutex */
 static int initted = 0;
-static int sector_size = 2048;   /* default 2048, 2352 for raw data reading */
+static int sector_size = 2048; /* default 2048, 2352 for raw data reading */
 
 /* Command execution sequence */
-int gd_cdrom_exec_cmd(int cmd, void *param) {
+int gd_cdrom_exec_cmd(int cmd, void *param)
+{
     int status[4] = {0};
     int f, n;
 
     /* Submit the command and wait for it to finish */
     f = gdc_req_cmd(cmd, param);
 
-    do {
+    do
+    {
         gdc_exec_server();
         n = gdc_get_cmd_stat(f, status);
-    }
-    while(n == PROCESSING);
+    } while (n == PROCESSING);
 
-    if(n == COMPLETED)
+    if (n == COMPLETED)
         return ERR_OK;
-    else if(n == ABORTED)
+    else if (n == ABORTED)
         return ERR_ABORTED;
-    else if(n == NO_ACTIVE)
+    else if (n == NO_ACTIVE)
         return ERR_NO_ACTIVE;
-    else {
-        switch(status[0]) {
-            case 2:
-                return ERR_NO_DISC;
-            case 6:
-                return ERR_DISC_CHG;
-            default:
-                return ERR_SYS;
+    else
+    {
+        switch (status[0])
+        {
+        case 2:
+            return ERR_NO_DISC;
+        case 6:
+            return ERR_DISC_CHG;
+        default:
+            return ERR_SYS;
         }
     }
 }
 
 /* Return the status of the drive as two integers (see constants) */
-int gd_cdrom_get_status(int *status, int *disc_type) {
-    int     rv = ERR_OK;
-    unsigned int  params[2];
+int gd_cdrom_get_status(int *status, int *disc_type)
+{
+    int rv = ERR_OK;
+    unsigned int params[2];
 
     rv = gdc_get_drv_stat(params);
 
-    if(rv >= 0) {
-        if(status != NULL)
+    if (rv >= 0)
+    {
+        if (status != NULL)
             *status = params[0];
 
-        if(disc_type != NULL)
+        if (disc_type != NULL)
             *disc_type = params[1];
     }
-    else {
-        if(status != NULL)
+    else
+    {
+        if (status != NULL)
             *status = -1;
 
-        if(disc_type != NULL)
+        if (disc_type != NULL)
             *disc_type = -1;
     }
 
@@ -156,26 +167,31 @@ int gd_cdrom_get_status(int *status, int *disc_type) {
 }
 
 /* Re-init the drive, e.g., after a disc change, etc */
-int gdrom_reinit() {
+int gdrom_reinit()
+{
     int rv = ERR_OK;
     int r = -1, cdxa;
-    unsigned int  params[4];
+    unsigned int params[4];
     int timeout;
 
     /* Try a few times; it might be busy. If it's still busy
        after this loop then it's probably really dead. */
     timeout = 10 * 1000;
 
-    while(timeout > 0) {
+    while (timeout > 0)
+    {
         r = gd_cdrom_exec_cmd(CMD_INIT, NULL);
 
-        if(r == 0) break;
+        if (r == 0)
+            break;
 
-        if(r == ERR_NO_DISC) {
+        if (r == ERR_NO_DISC)
+        {
             rv = r;
             goto exit;
         }
-        else if(r == ERR_SYS) {
+        else if (r == ERR_SYS)
+        {
             rv = r;
             goto exit;
         }
@@ -183,7 +199,8 @@ int gdrom_reinit() {
         timeout--;
     }
 
-    if(timeout <= 0) {
+    if (timeout <= 0)
+    {
         rv = r;
         goto exit;
     }
@@ -191,12 +208,13 @@ int gdrom_reinit() {
     /* Check disc type and set parameters */
     gdc_get_drv_stat(params);
     cdxa = params[1] == 32;
-    params[0] = 0;                      /* 0 = set, 1 = get */
-    params[1] = 8192;                   /* ? */
-    params[2] = cdxa ? 2048 : 1024;     /* CD-XA mode 1/2 */
-    params[3] = sector_size;            /* sector size */
+    params[0] = 0;                  /* 0 = set, 1 = get */
+    params[1] = 8192;               /* ? */
+    params[2] = cdxa ? 2048 : 1024; /* CD-XA mode 1/2 */
+    params[3] = sector_size;        /* sector size */
 
-    if(gdc_change_data_type(params) < 0) {
+    if (gdc_change_data_type(params) < 0)
+    {
         rv = ERR_SYS;
         goto exit;
     }
@@ -206,10 +224,12 @@ exit:
 }
 
 /* Read the table of contents */
-int gd_cdrom_read_toc(CDROM_TOC *toc_buffer, int session) {
-    struct {
+int gd_cdrom_read_toc(CDROM_TOC *toc_buffer, int session)
+{
+    struct
+    {
         int session;
-        void    *buffer;
+        void *buffer;
     } params;
     int rv;
 
@@ -221,19 +241,21 @@ int gd_cdrom_read_toc(CDROM_TOC *toc_buffer, int session) {
 }
 
 /* Initialize: assume no threading issues */
-int gd_cdrom_init() {
+int gd_cdrom_init()
+{
     unsigned int p;
-    volatile unsigned int *react = (unsigned int*)0xa05f74e4,
-                     *bios = (unsigned int*)0xa0000000;
+    volatile unsigned int *react = (unsigned int *)0xa05f74e4,
+                          *bios = (unsigned int *)0xa0000000;
 
-    if(initted)
+    if (initted)
         return -1;
 
     /* Reactivate drive: send the BIOS size and then read each
        word across the bus so the controller can verify it. */
     *react = 0x1fffff;
 
-    for(p = 0; p < 0x200000 / 4; p++) {
+    for (p = 0; p < 0x200000 / 4; p++)
+    {
         (void)bios[p];
     }
 
@@ -246,8 +268,9 @@ int gd_cdrom_init() {
     return 0;
 }
 
-void gd_cdrom_shutdown() {
-    if(!initted)
+void gd_cdrom_shutdown()
+{
+    if (!initted)
         return;
 
     initted = 0;

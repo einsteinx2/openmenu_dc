@@ -5,7 +5,7 @@
 
 extern "C"
 {
-	#include "../gdemu_sdk.h"
+#include "../gdemu_sdk.h"
 	extern void runit(void);
 	extern void runit_kos(uint32_t *bin, uint32_t bin_size);
 }

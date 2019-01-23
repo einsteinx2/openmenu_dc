@@ -2,15 +2,13 @@
 #include "cdfs.h"
 
 #ifndef NULL
-#define NULL ((void*)0)
+#define NULL ((void *)0)
 #endif
-
 
 /* Static buffers.  These make most of the functions
  * non-reentrant.                                     */
-static unsigned int sector_buffer[2048/4];
-static unsigned int dir_buffer[2048/4];
-
+static unsigned int sector_buffer[2048 / 4];
+static unsigned int dir_buffer[2048 / 4];
 
 /*
  * libc like support
@@ -19,16 +17,16 @@ static unsigned int dir_buffer[2048/4];
 int memcmp(const void *p1, const void *p2, unsigned int size)
 {
   const unsigned char *m1 = p1, *m2 = p2;
-  while(size--)
-    if(*m1++ != *m2++)
-      return m2[-1]-m1[-1];
+  while (size--)
+    if (*m1++ != *m2++)
+      return m2[-1] - m1[-1];
   return 0;
 }
 
 char *strchr0(const char *s, int c)
 {
-  while(*s!=c)
-    if(!*s++)
+  while (*s != c)
+    if (!*s++)
       return NULL;
   return (char *)s;
 }
@@ -36,33 +34,34 @@ char *strchr0(const char *s, int c)
 /* Low level I/O stuffs */
 static int gd_init_drive()
 {
-    return gdrom_reinit();
+  return gdrom_reinit();
 }
 
 static int gd_read_toc(CDROM_TOC *toc, int session)
 {
-    uint32_t sz = sizeof(CDROM_TOC);
-    (void)session;
-    gd_gd_read_toc((uint16_t *)toc, &sz);
-    return 0;
+  uint32_t sz = sizeof(CDROM_TOC);
+  (void)session;
+  gd_gd_read_toc((uint16_t *)toc, &sz);
+  return 0;
 }
 
 static int gd_read_sectors(char *buf, int sec, int num)
 {
-    int i;
-    uint32_t sz = 2048;
+  int i;
+  uint32_t sz = 2048;
 
-    for(i = 0; i < num; ++i) {
-        if(gd_read_sector(sec++, (uint16 *)buf, &sz) != 2048) {
-            return -1;
-        }
-
-        buf += 2048;
+  for (i = 0; i < num; ++i)
+  {
+    if (gd_read_sector(sec++, (uint16 *)buf, &sz) != 2048)
+    {
+      return -1;
     }
 
-    return 0;
-}
+    buf += 2048;
+  }
 
+  return 0;
+}
 
 /*
  * ISO9660 support functions
@@ -71,81 +70,88 @@ static int gd_read_sectors(char *buf, int sec, int num)
 static int ntohlp(unsigned char *ptr)
 {
   /* Convert the long word pointed to by ptr from big endian */
-  return (ptr[0]<<24)|(ptr[1]<<16)|(ptr[2]<<8)|ptr[3];
+  return (ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3];
 }
 
 static int fncompare(const char *fn1, int fn1len, const char *fn2, int fn2len)
 {
   /* Compare two filenames, disregarding verion number on fn2 if neccessary */
-  while(fn2len--)
-    if(!fn1len--)
+  while (fn2len--)
+    if (!fn1len--)
       return *fn2 == ';';
-    else if(*fn1++ != *fn2++)
+    else if (*fn1++ != *fn2++)
       return 0;
   return fn1len == 0;
 }
-
 
 /* 
  * Low file I/O
  */
 
+unsigned int gd_find_datatrack(CDROM_TOC *toc)
+{
+  int i, first, last;
 
-unsigned int gd_find_datatrack(CDROM_TOC *toc) {
-    int i, first, last;
-    
-    first = TOC_TRACK(toc->first);
-    last = TOC_TRACK(toc->last);
-    
-    if(first < 1 || last > 99 || first > last) {
-        /* Guess that its the first High Density area track... */
-        return 0;
-    }
-    
-    for(i = first; i <= last; ++i) {
-        if(TOC_CTRL(toc->entry[i - 1]) == 4) {
-            return TOC_LBA(toc->entry[i - 1]);
-        }
-    }
-    
-    /* Punt. */
+  first = TOC_TRACK(toc->first);
+  last = TOC_TRACK(toc->last);
+
+  if (first < 1 || last > 99 || first > last)
+  {
+    /* Guess that its the first High Density area track... */
     return 0;
+  }
+
+  for (i = first; i <= last; ++i)
+  {
+    if (TOC_CTRL(toc->entry[i - 1]) == 4)
+    {
+      return TOC_LBA(toc->entry[i - 1]);
+    }
+  }
+
+  /* Punt. */
+  return 0;
 }
 
 static int gd_find_root(unsigned int *psec, unsigned int *plen)
 {
-    /* Find location and length of root directory.
+  /* Find location and length of root directory.
        Plain ISO9660 only.                         */
-    static CDROM_TOC toc;
-    int r;
-    unsigned int sec;
+  static CDROM_TOC toc;
+  int r;
+  unsigned int sec;
 
-    if((r=gd_init_drive())!=0) {
-        return r;
-    }
-    if((r=gd_read_toc(&toc, 0))!=0) {
-        return r;
-    }
-    if(!(sec = gd_find_datatrack(&toc))) {
-        return ERR_DIRERR;
-    }
-    if((r=gd_read_sectors((char *)sector_buffer, sec+16, 1))!=0) {
-        return r;
-    }
-    if(memcmp((char *)sector_buffer, "\001CD001", 6)) {
-        return ERR_DIRERR;
-    }
+  if ((r = gd_init_drive()) != 0)
+  {
+    return r;
+  }
+  if ((r = gd_read_toc(&toc, 0)) != 0)
+  {
+    return r;
+  }
+  if (!(sec = gd_find_datatrack(&toc)))
+  {
+    return ERR_DIRERR;
+  }
+  if ((r = gd_read_sectors((char *)sector_buffer, sec + 16, 1)) != 0)
+  {
+    return r;
+  }
+  if (memcmp((char *)sector_buffer, "\001CD001", 6))
+  {
+    return ERR_DIRERR;
+  }
 
-    /* Need to add 150 to LBA to get physical sector number */
-    *psec = ntohlp(((unsigned char *)sector_buffer)+156+6) + 150;
-    *plen = ntohlp(((unsigned char *)sector_buffer)+156+14);
+  /* Need to add 150 to LBA to get physical sector number */
+  *psec = ntohlp(((unsigned char *)sector_buffer) + 156 + 6) + 150;
+  *plen = ntohlp(((unsigned char *)sector_buffer) + 156 + 14);
 
-    return 0;
+  return 0;
 }
 
 static int gd_low_find(unsigned int sec, unsigned int dirlen, int isdir,
-		    unsigned int *psec, unsigned int *plen,
-		    const char *fname, int fnlen)
+                       unsigned int *psec, unsigned int *plen,
+                       const char *fname, int fnlen)
 {
   /* Find a named entry in a directory */
 
@@ -154,39 +160,41 @@ static int gd_low_find(unsigned int sec, unsigned int dirlen, int isdir,
   /* psec and plen points to variables that will receive the extent
      of the file if found                                           */
 
-  isdir = (isdir? 2 : 0);
-  while(dirlen>0) {
+  isdir = (isdir ? 2 : 0);
+  while (dirlen > 0)
+  {
     int r;
     unsigned int i;
     unsigned char *rec = (unsigned char *)sector_buffer;
-    if((r=gd_read_sectors((char *)sector_buffer, sec, 1))!=0)
+    if ((r = gd_read_sectors((char *)sector_buffer, sec, 1)) != 0)
       return r;
-    for(i=0; i<2048 && i<dirlen && rec[0] != 0; i += rec[0], rec += rec[0]) {
-      if((rec[25]&2) == isdir && fncompare(fname, fnlen, (char *)rec+33,
-                                           rec[32])) {
-	/* Entry found.  Copy start sector and length.  Add 150 to LBA. */
-	*psec = ntohlp(rec+6)+150;
-	*plen = ntohlp(rec+14);
-	return 0;
+    for (i = 0; i < 2048 && i < dirlen && rec[0] != 0; i += rec[0], rec += rec[0])
+    {
+      if ((rec[25] & 2) == isdir && fncompare(fname, fnlen, (char *)rec + 33,
+                                              rec[32]))
+      {
+        /* Entry found.  Copy start sector and length.  Add 150 to LBA. */
+        *psec = ntohlp(rec + 6) + 150;
+        *plen = ntohlp(rec + 14);
+        return 0;
       }
     }
     /* Not found, proceed to next sector */
     sec++;
-    dirlen -= (dirlen>2048? 2048 : dirlen);
+    dirlen -= (dirlen > 2048 ? 2048 : dirlen);
   }
   /* End of directory.  Entry not found. */
   return ERR_NOFILE;
 }
 
-
 /* File I/O */
 
-
 /* A file handle. */
-static struct {
-  unsigned int sec0;  /* First sector                     */
-  unsigned int loc;   /* Current read position (in bytes) */
-  unsigned int len;   /* Length of file (in bytes)        */
+static struct
+{
+  unsigned int sec0; /* First sector                     */
+  unsigned int loc;  /* Current read position (in bytes) */
+  unsigned int len;  /* Length of file (in bytes)        */
 } fh[MAX_OPEN_FILES];
 
 int gd_open(const char *path, int oflag)
@@ -196,36 +204,40 @@ int gd_open(const char *path, int oflag)
   char *p;
 
   /* Find a free file handle */
-  for(fd=0; fd<MAX_OPEN_FILES; fd++)
-    if(fh[fd].sec0 == 0)
+  for (fd = 0; fd < MAX_OPEN_FILES; fd++)
+    if (fh[fd].sec0 == 0)
       break;
-  if(fd>=MAX_OPEN_FILES)
+  if (fd >= MAX_OPEN_FILES)
     return ERR_NUMFILES;
 
   /* Find the root directory */
-  if((r=gd_find_root(&sec, &len)))
+  if ((r = gd_find_root(&sec, &len)))
     return r;
 
   /* If the file we want is in a subdirectory, first locate
      this subdirectory                                      */
-  while((p = strchr0(path, '/'))) {
-    if(p != path)
-      if((r = gd_low_find(sec, len, 1, &sec, &len, path, p-path)))
-	return r;
-    path = p+1;
+  while ((p = strchr0(path, '/')))
+  {
+    if (p != path)
+      if ((r = gd_low_find(sec, len, 1, &sec, &len, path, p - path)))
+        return r;
+    path = p + 1;
   }
 
   /* Locate the file in the resulting directory */
-  if(*path) {
-    if((r = gd_low_find(sec, len, oflag&O_DIR, &sec, &len, path,
-                     strchr0(path, '\0')-path))) {
+  if (*path)
+  {
+    if ((r = gd_low_find(sec, len, oflag & O_DIR, &sec, &len, path,
+                         strchr0(path, '\0') - path)))
+    {
       return r;
     }
   }
-  else {
+  else
+  {
     /* If the path ends with a slash, check that it's really
        the dir that is wanted                                */
-    if(!(oflag&O_DIR))
+    if (!(oflag & O_DIR))
       return ERR_NOFILE;
   }
 
@@ -239,7 +251,7 @@ int gd_open(const char *path, int oflag)
 int gd_close(int fd)
 {
   /* Check that the fd is valid */
-  if(fd<0 || fd>=MAX_OPEN_FILES)
+  if (fd < 0 || fd >= MAX_OPEN_FILES)
     return ERR_PARAM;
 
   /* Zeroing the sector number marks the handle as unused */
@@ -252,24 +264,26 @@ int gd_pread(int fd, void *buf, unsigned int nbyte, unsigned int offset)
   int r, t;
 
   /* Check that the fd is valid */
-  if(fd<0 || fd>=MAX_OPEN_FILES || fh[fd].sec0==0)
+  if (fd < 0 || fd >= MAX_OPEN_FILES || fh[fd].sec0 == 0)
     return ERR_PARAM;
 
   /* If the read position is beyond the end of the file,
      return an empty read                                */
-  if(offset>=fh[fd].len)
+  if (offset >= fh[fd].len)
     return 0;
 
   /* If the full read would span beyond the EOF, shorten the read */
-  if(offset+nbyte > fh[fd].len)
+  if (offset + nbyte > fh[fd].len)
     nbyte = fh[fd].len - offset;
 
   /* Read whole sectors directly into buf if possible */
-  if(nbyte>=2048 && !(offset & 2047))
-    if((r = gd_read_sectors(buf, fh[fd].sec0 + (offset>>11), nbyte>>11)))
+  if (nbyte >= 2048 && !(offset & 2047))
+    if ((r = gd_read_sectors(buf, fh[fd].sec0 + (offset >> 11), nbyte >> 11)))
       return r;
-    else {
-      t = nbyte & ~2047;;
+    else
+    {
+      t = nbyte & ~2047;
+      ;
       buf = ((char *)buf) + t;
       offset += t;
       nbyte &= 2047;
@@ -278,30 +292,34 @@ int gd_pread(int fd, void *buf, unsigned int nbyte, unsigned int offset)
     t = 0;
 
   /* If all data has now been read, return */
-  if(!nbyte)
+  if (!nbyte)
     return t;
 
   /* Need to read parts of sectors */
-  if((offset & 2047)+nbyte > 2048) {
+  if ((offset & 2047) + nbyte > 2048)
+  {
     /* If more than one sector is involved, split the read
        up and recurse                                      */
-    if((r = gd_pread(fd, buf, 2048-(offset & 2047), offset))<0)
+    if ((r = gd_pread(fd, buf, 2048 - (offset & 2047), offset)) < 0)
       return r;
-    else {
+    else
+    {
       t += r;
       buf = ((char *)buf) + r;
       offset += r;
       nbyte -= r;
     }
-    if((r = gd_pread(fd, buf, nbyte, offset))<0)
+    if ((r = gd_pread(fd, buf, nbyte, offset)) < 0)
       return r;
     else
       t += r;
-  } else {
+  }
+  else
+  {
     /* Just one sector.  Read it and copy the relevant part. */
-    if((r = gd_read_sectors((char *)sector_buffer, fh[fd].sec0+(offset>>11), 1)))
+    if ((r = gd_read_sectors((char *)sector_buffer, fh[fd].sec0 + (offset >> 11), 1)))
       return r;
-    memcpy(buf, ((char *)sector_buffer)+(offset&2047), nbyte);
+    memcpy(buf, ((char *)sector_buffer) + (offset & 2047), nbyte);
     t += nbyte;
   }
   return t;
@@ -310,13 +328,14 @@ int gd_pread(int fd, void *buf, unsigned int nbyte, unsigned int offset)
 int gd_read(int fd, void *buf, unsigned int nbyte)
 {
   /* Check that the fd is valid */
-  if(fd<0 || fd>=MAX_OPEN_FILES || fh[fd].sec0==0)
+  if (fd < 0 || fd >= MAX_OPEN_FILES || fh[fd].sec0 == 0)
     return ERR_PARAM;
-  else {
+  else
+  {
     /* Use pread to read at the current position */
     int r = gd_pread(fd, buf, nbyte, fh[fd].loc);
     /* Update current position */
-    if(r>0)
+    if (r > 0)
       fh[fd].loc += r;
     return r;
   };
@@ -325,25 +344,24 @@ int gd_read(int fd, void *buf, unsigned int nbyte)
 long int gd_lseek(int fd, long int offset, int whence)
 {
   /* Check that the fd is valid */
-  if(fd<0 || fd>=MAX_OPEN_FILES || fh[fd].sec0==0)
+  if (fd < 0 || fd >= MAX_OPEN_FILES || fh[fd].sec0 == 0)
     return ERR_PARAM;
 
   /* Update current position according to arguments */
-  switch(whence) {
-   case SEEK_SET:
-     return fh[fd].loc = offset;
-   case SEEK_CUR:
-     return fh[fd].loc += offset;
-   case SEEK_END:
-     return fh[fd].loc = fh[fd].len + offset;
-   default:
-     return ERR_PARAM;
+  switch (whence)
+  {
+  case SEEK_SET:
+    return fh[fd].loc = offset;
+  case SEEK_CUR:
+    return fh[fd].loc += offset;
+  case SEEK_END:
+    return fh[fd].loc = fh[fd].len + offset;
+  default:
+    return ERR_PARAM;
   }
 }
 
-
 /* Dir I/O */
-
 
 /* More static buffers.
    Only one directory may be read at the same time... */
@@ -353,7 +371,7 @@ static struct kos_dirent g_dirent;
 DIR *gd_opendir(const char *dirname)
 {
   /* Try to open a handle for the directory */
-  if((g_dir.dd_fd = gd_open(dirname, O_DIR|O_RDONLY)))
+  if ((g_dir.dd_fd = gd_open(dirname, O_DIR | O_RDONLY)))
     return NULL;
 
   /* Fill out the rest of the struct */
@@ -371,56 +389,63 @@ int gd_closedir(DIR *dirp)
 
 int gd_readdir_r(DIR *dirp, struct kos_dirent *entry, struct kos_dirent **res)
 {
-  int l, r=0;
+  int l, r = 0;
   unsigned char *rec;
 
   /* Check that the DIR* is valid */
-  if(dirp == NULL || dirp->dd_fd<0)
+  if (dirp == NULL || dirp->dd_fd < 0)
     r = ERR_PARAM;
-  else {
-    do {
-      while(dirp->dd_loc >= dirp->dd_size ||
-	    (l=dirp->dd_buf[dirp->dd_loc]) == 0 ||
-	    dirp->dd_loc + l > dirp->dd_size) {
-	/* Need to read more dir data */
-	if((r = gd_read(dirp->dd_fd, dirp->dd_buf, 2048))<=0) {
-	  /* Read error or EOF on directory */
-	  *res = NULL;
-	  return (r? r : ERR_NOFILE);
-	}
-	/* Reset buffer read pointer */
-	dirp->dd_loc = 0;
-	dirp->dd_size = r;
-	r = 0;
+  else
+  {
+    do
+    {
+      while (dirp->dd_loc >= dirp->dd_size ||
+             (l = dirp->dd_buf[dirp->dd_loc]) == 0 ||
+             dirp->dd_loc + l > dirp->dd_size)
+      {
+        /* Need to read more dir data */
+        if ((r = gd_read(dirp->dd_fd, dirp->dd_buf, 2048)) <= 0)
+        {
+          /* Read error or EOF on directory */
+          *res = NULL;
+          return (r ? r : ERR_NOFILE);
+        }
+        /* Reset buffer read pointer */
+        dirp->dd_loc = 0;
+        dirp->dd_size = r;
+        r = 0;
       }
 
       /* Found nonzero-length entry in buffer */
-      rec = (unsigned char *)(dirp->dd_buf+dirp->dd_loc);
+      rec = (unsigned char *)(dirp->dd_buf + dirp->dd_loc);
 
       /* Move read pointer past it */
       dirp->dd_loc += l;
 
       /* Copy entry name to dirent */
-      memcpy(entry->name, rec+33, rec[32]);
+      memcpy(entry->name, rec + 33, rec[32]);
       entry->name[rec[32]] = '\0';
 
       /* Copy size (set to -1 for directory) */
-      entry->size = ((rec[25]&2)? -1 : ntohlp(rec+14));
+      entry->size = ((rec[25] & 2) ? -1 : ntohlp(rec + 14));
 
       /* Strip trailing version number from name, if present */
-      if((rec = (unsigned char *)strchr0(entry->name, ';')))
-	*rec = '\0';
+      if ((rec = (unsigned char *)strchr0(entry->name, ';')))
+        *rec = '\0';
 
       /* Keep going until we find an entry that is not the current
 	 or the parent directory (see ECMA-119)                    */
-    } while(entry->name[0]==0 || entry->name[0]==1);
+    } while (entry->name[0] == 0 || entry->name[0] == 1);
   }
 
   /* Return result */
-  if(r) {
+  if (r)
+  {
     *res = NULL;
     return r;
-  } else {
+  }
+  else
+  {
     *res = entry;
     return 0;
   }
