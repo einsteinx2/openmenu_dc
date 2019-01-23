@@ -15,6 +15,7 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 CPPFLAGS ?= $(INC_FLAGS) -MMD -MP
 
 default: $(BUILD_DIR)/$(TARGET_EXEC)
+	cd loader && $(MAKE)
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS) $(BUILD_DIR)/romdisk.o
 	@echo "Linking $(TARGET_EXEC)"
@@ -24,7 +25,8 @@ $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS) $(BUILD_DIR)/romdisk.o
 	
 .PHONY: scramble
 scramble: $(BUILD_DIR)/$(TARGET_EXEC)
-	scramble $(BUILD_DIR)/$(basename $(TARGET_EXEC)) $(BUILD_DIR)/1ST_READ.BIN
+	cd loader && $(MAKE) scramble
+#	scramble $(BUILD_DIR)/$(basename $(TARGET_EXEC)) $(BUILD_DIR)/1ST_READ.BIN
 	
 # assembly
 $(BUILD_DIR)/%.s.o: %.s
@@ -56,6 +58,7 @@ $(BUILD_DIR)/romdisk.o: $(BUILD_DIR)/romdisk.img
 
 clean:
 	$(RM) -r $(BUILD_DIR)
+	cd loader && $(MAKE) clean
 
 -include $(DEPS)
 

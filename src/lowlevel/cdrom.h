@@ -119,34 +119,6 @@ __BEGIN_DECLS
 #define CD_GDROM 0x80    /**< \brief GD-ROM */
 /** @} */
 
-/** \defgroup cd_toc_access         CD-ROM TOC access macros
-    @{
-*/
-/** \brief  Get the FAD address of a TOC entry.
-    \param  n               The actual entry from the TOC to look at.
-    \return                 The FAD of the entry.
-*/
-#define TOC_LBA(n) ((n)&0x00ffffff)
-
-/** \brief  Get the address of a TOC entry.
-    \param  n               The entry from the TOC to look at.
-    \return                 The entry's address.
-*/
-#define TOC_ADR(n) (((n)&0x0f000000) >> 24)
-
-/** \brief  Get the control data of a TOC entry.
-    \param  n               The entry from the TOC to look at.
-    \return                 The entry's control value.
-*/
-#define TOC_CTRL(n) (((n)&0xf0000000) >> 28)
-
-/** \brief  Get the track number of a TOC entry.
-    \param  n               The entry from the TOC to look at.
-    \return                 The entry's track.
-*/
-#define TOC_TRACK(n) (((n)&0x00ff0000) >> 16)
-/** @} */
-
 /** \brief  Execute a CD-ROM command.
 
     This function executes the specified command using the BIOS syscall for
