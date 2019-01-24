@@ -12,8 +12,10 @@
 
 extern "C"
 {
-#include "addons/pvr-texture.h"
+#include "addons/textureex.h"
 #include "lowlevel/cdrom.h"
+
+extern void run_blindly();
 }
 
 #include "addons/updateGD.h"
@@ -21,6 +23,8 @@ extern "C"
 extern uint8 romdisk[];
 KOS_INIT_FLAGS(INIT_DEFAULT);
 KOS_INIT_ROMDISK(romdisk);
+
+#define EDGE_PADDING 8
 
 class MyMenu : public GenericMenu, public RefCnt
 {
@@ -67,36 +71,26 @@ class MyMenu : public GenericMenu, public RefCnt
         title_label->setTint(m_gray);
         m_scene->subAdd(title_label);
 
-        disc_label = new Label(fnt, "DISC_TITLE", 24, true, true);
-        disc_label->setTranslate(Vector(0, -20, 0));
+        disc_label = new Label(fnt, "DISC_TITLE", 24, false, true);
+        disc_label->setTranslate(Vector(-320+EDGE_PADDING, 100, 0));
         disc_label->setTint(m_gray);
         m_scene->subAdd(disc_label);
 
-        status_label = new Label(fnt, "Welcome to openMenu!", 24, true, true);
-        status_label->setTranslate(Vector(0, 220, 0));
+        status_label = new Label(fnt, "Welcome to openMenu!", 24, false, true);
+        status_label->setTranslate(Vector(-320+EDGE_PADDING, 220, 0));
         status_label->setTint(m_red);
         m_scene->subAdd(status_label);
 
         updateGD = new UpdateGD();
-        m_scene->subAdd(updateGD);
+        txr = new TextureEx("/cd/0GDTEX.PVR");
+        
+        b = new Banner(PVR_LIST_TR_POLY, txr);
+        b->setScale(Vector(0.5f,0.5f,0.5f));
+        b->setTranslate(Vector(192+64-EDGE_PADDING, 112+64-EDGE_PADDING, 0)); //lower right corner, but image centered
+        m_scene->subAdd(b);
 
-        // Load a texture for our banner
-        /*txr = new Texture();
-        plx_texture_t *tex = *txr;
-        pvr_ptr_t tl = TextureLoadPVR("/rd/0GDTEX.PVR", 0, 0);
-        if (tl != NULL)
-        {
-            tex->ptr = tl;
-        }*/
-
-        // Setup a scene and place a banner in it
-        /*b = new Banner(PVR_LIST_TR_POLY, txr);
-        b->setTranslate(Vector(0, 0, 0));
-        m_scene->subAdd(b);*/
         m_cursel = 0;
         stage = 9;
-        
-        gd_cdrom_init();
     }
 
     virtual ~MyMenu()
@@ -106,9 +100,6 @@ class MyMenu : public GenericMenu, public RefCnt
     void updateDiscLabel()
     {
         disc_label->setText(updateGD->getTitle());
-        char name[20];
-        sprintf(name, "[%s]",updateGD->getBinary());
-        status_label->setText(name);
         m_options[2]->setText("Start");
         stage = 0;
     }
@@ -193,14 +184,15 @@ class MyMenu : public GenericMenu, public RefCnt
                     /* Should Work but Broken */
                     /*updateGD->run();*/
                     //Slower but working at the moment
-                    updateGD->run_alt();
+                    //updateGD->run_alt();
+                    run_blindly();
                     break;
                 }
                 break;
             case 3:
                 if (stage == 3)
                 {
-                    updateGD->run();
+                   updateGD->run_alt();
                 }
                 status_label->setText("Exiting!");
                 startExit();
@@ -257,16 +249,13 @@ int main(int argc, char **argv)
     // Guard against an untoward exit during testing.
     cont_btn_callback(0, CONT_START | CONT_A | CONT_B | CONT_X | CONT_Y,
                       (void (*)(unsigned char, long unsigned int))arch_exit);
-
-    // Get 3D going
+   // Get 3D going
     pvr_init_defaults();
-
     // Load a font
     RefPtr<Font> fnt = new Font("/rd/revenant.txf");
 
     // Create a menu
     RefPtr<MyMenu> mm = new MyMenu(fnt);
-
     // Do the menu
     mm->doMenu();
 

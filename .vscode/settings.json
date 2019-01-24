@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.mak": "makefile",
+        "*.make": "makefile",
+        "pvr-texture.h": "c"
+    }
+}

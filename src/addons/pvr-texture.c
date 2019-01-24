@@ -1,170 +1,156 @@
 /*
-   KallistiOS 2.0.0
-
    pvr-texture.c
-   (c)2014 Josh PH3NOM Pearson
    (c) 2019 hayden Kowalchuk
 
-   Load A PVR Texture to the PVR using ~~Open GL~~ PVR
+   Load A PVR Texture to the PVR
 */
 #include "pvr-texture.h"
 
+/** Texture structure */
+/*typedef struct plx_texture {
+	pvr_ptr_t	ptr;
+	int		w;
+	int		h;
+	int		fmt; < PVR texture format (e.g., PVR_TXRFMT_ARGB4444)
+
+	pvr_poly_cxt_t	cxt_opaque,
+			cxt_trans,
+			cxt_pt;
+	pvr_poly_hdr_t	hdr_opaque,
+			hdr_trans,
+			hdr_pt;
+} plx_texture_t;*/
+
+extern void fill_contexts(plx_texture_t *txr);
+
 #define PVR_HDR_SIZE 0x20
-
-static uint32_t PVR_TextureHeight(unsigned char *HDR);
-static uint32_t PVR_TextureWidth(unsigned char *HDR);
-static uint32_t PVR_TextureFormat(unsigned char *HDR);
-static uint32_t PVR_TextureColor(unsigned char *HDR);
-
-/* Load a PVR texture file into memory, and then bind the texture to Open GL.
-   fname is the name of the PVR texture file to be opened and read.
-   isMipMapped should be passed as 1 if the texture contains MipMap levels, 0 otherwise.
-   glMipMap should be passed as 1 if Open GL should calculate the Mipmap levels, 0 otherwise */
-pvr_ptr_t TextureLoadPVR(char *fname, unsigned char isMipMapped, unsigned char glMipMap)
+/* Load a PVR texture file into memory, and then bind the texture to Parallax */
+plx_texture_t *TextureLoadPVR(char *fname)
 {
-    FILE *tex = NULL;
-    pvr_ptr_t texture_pointer;
-    unsigned short *image_data;
-    uint8 HDR[PVR_HDR_SIZE];
-    uint32_t texSize, texW, texH, texFormat, texColor;
+    /* create a new plx texture */
+    plx_texture_t *txr;
+    txr = malloc(sizeof(plx_texture_t));
+    pvr_ptr_t rv;
 
-    /* Open the PVR texture file, and get its file size */
+    FILE *tex = NULL;
+    unsigned char *texBuf;
+    unsigned int texSize;
+
     tex = fopen(fname, "rb");
 
     if (tex == NULL)
     {
-        printf("FILE READ ERROR: %s\n", fname);
-        fflush(stdout);
-        return (pvr_ptr_t)NULL;
+        printf("------    Failed to load image file: %s\n", fname);
+        return NULL;
     }
 
     fseek(tex, 0, SEEK_END);
-    texSize = ftell(tex) - PVR_HDR_SIZE;
+    texSize = ftell(tex);
+
+    texBuf = (unsigned char *)malloc(texSize);
     fseek(tex, 0, SEEK_SET);
-
-    /* Read in the PVR texture file header */
-    fread(HDR, 1, PVR_HDR_SIZE, tex);
-
-    /* Extract some information from the PVR texture file header */
-    texW = PVR_TextureWidth(HDR);
-    texH = PVR_TextureHeight(HDR);
-    texFormat = PVR_TextureFormat(HDR);
-    texColor = PVR_TextureColor(HDR);
-
-    /* Allocate Some Memory for the texture. If we are using Open GL to build the MipMap,
-       we need to allocate enough space to hold the MipMap texture levels. */
-    /*if (!isMipMapped && glMipMap)
-    {
-        //TEX0 = malloc(glKosMipMapTexSize(texW, texH));
-    }
-    else
-    {*/
-        image_data = (unsigned short *)malloc(texSize);
-        texture_pointer = pvr_mem_malloc(texSize);
-    //}
-
-    fread(image_data, 1, texSize, tex); /* Read in the PVR texture data */
-
-    /* If requested, tell Open GL to build the MipMap levels for the texture. */
-    /* For now, the input texture to gluBuild2DMipmaps must have a width and height divisible by two. */
-    /* Also, color format is only set by the 2nd to last parameter, here as texColor.
-       The color format may be one of the three: PVR_TXRFMT_RGB565, PVR_TXRFMT_ARGB1555, or PVR_TXRFMT_ARGB4444 */
-    /*if(!isMipMapped && glMipMap)
-        gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGB, texW, texH, GL_RGB, texColor, TEX0);*/
-
-    /* Generate and bind a texture as normal for Open GL */
-    /*glGenTextures(1, &texID);
-    glBindTexture(GL_TEXTURE_2D, texID);
-
-    if(texFormat & PVR_TXRFMT_VQ_ENABLE)
-        glCompressedTexImage2D(GL_TEXTURE_2D,
-                               (isMipMapped || glMipMap) ? 1 : 0,
- 	                       texFormat | texColor,
- 	                       texW,
- 	                       texH,
- 	                       0,
- 	                       texSize,
- 	                       TEX0);
-    else    
-        glTexImage2D(GL_TEXTURE_2D,
-                     (isMipMapped || glMipMap) ? 1 : 0,
-                     GL_RGB,
-                     texW, texH,
-                     0,
-                     GL_RGB,
-                     texFormat | texColor,
-                     TEX0);    
-    */
-
-    pvr_txr_load_ex(image_data, texture_pointer, texW, texH, texFormat | texColor);
-    free(image_data);
+    fread(texBuf, 1, texSize, tex);
     fclose(tex);
-    return texture_pointer;
-}
 
-static uint32_t PVR_TextureColor(unsigned char *HDR)
-{
-    switch ((uint32_t)HDR[PVR_HDR_SIZE - 8])
+    int texW = texBuf[PVR_HDR_SIZE - 4] | texBuf[PVR_HDR_SIZE - 3] << 8;
+    int texH = texBuf[PVR_HDR_SIZE - 2] | texBuf[PVR_HDR_SIZE - 1] << 8;
+    int texFormat, texColor;
+    int Bpp = 2; // in Bytes
+
+    switch ((unsigned int)texBuf[PVR_HDR_SIZE - 8])
     {
     case 0x00:
-        return PVR_TXRFMT_ARGB1555; //(bilevel translucent alpha 0,255)
+        texColor = PVR_TXRFMT_ARGB1555;
+        Bpp = 2;
+        break; //(bilevel translucent alpha 0,255)
 
     case 0x01:
-        return PVR_TXRFMT_RGB565; //(non translucent RGB565 )
+        texColor = PVR_TXRFMT_RGB565;
+        Bpp = 2;
+        break; //(non translucent RGB565 )
 
     case 0x02:
-        return PVR_TXRFMT_ARGB4444; //(translucent alpha 0-255)
+        texColor = PVR_TXRFMT_ARGB4444;
+        Bpp = 2;
+        break; //(translucent alpha 0-255)
 
     case 0x03:
-        return PVR_TXRFMT_YUV422; //(non translucent UYVY )
+        texColor = PVR_TXRFMT_YUV422;
+        Bpp = 1;
+        break; //(non translucent UYVY )
 
     case 0x04:
-        return PVR_TXRFMT_BUMP; //(special bump-mapping format)
+        texColor = PVR_TXRFMT_BUMP;
+        Bpp = 2;
+        break; //(special bump-mapping format)
 
     case 0x05:
-        return PVR_TXRFMT_PAL4BPP; //(4-bit palleted texture)
+        texColor = PVR_TXRFMT_PAL4BPP;
+        Bpp = 1;
+        break; //(4-bit palleted texture)
 
     case 0x06:
-        return PVR_TXRFMT_PAL8BPP; //(8-bit palleted texture)
+        texColor = PVR_TXRFMT_PAL8BPP;
+        Bpp = 1;
+        break; //(8-bit palleted texture)
 
     default:
-        return PVR_TXRFMT_RGB565;
+        texColor = PVR_TXRFMT_RGB565;
+        Bpp = 2;
+        break;
     }
-}
 
-static uint32_t PVR_TextureFormat(unsigned char *HDR)
-{
-    switch ((uint32_t)HDR[PVR_HDR_SIZE - 7])
+    switch ((unsigned int)texBuf[PVR_HDR_SIZE - 7])
     {
     case 0x01:
-        return PVR_TXRFMT_TWIDDLED; //SQUARE TWIDDLED
+        texFormat = PVR_TXRFMT_TWIDDLED;
+        break; //SQUARE TWIDDLED
 
     case 0x03:
-        return PVR_TXRFMT_VQ_ENABLE; //VQ TWIDDLED
+        texFormat = PVR_TXRFMT_VQ_ENABLE;
+        break; //VQ TWIDDLED
 
     case 0x09:
-        return PVR_TXRFMT_NONTWIDDLED; //RECTANGLE
+        texFormat = PVR_TXRFMT_NONTWIDDLED;
+        break; //RECTANGLE
 
     case 0x0B:
-        return PVR_TXRFMT_STRIDE | PVR_TXRFMT_NONTWIDDLED; //RECTANGULAR STRIDE
+        texFormat = PVR_TXRFMT_STRIDE | PVR_TXRFMT_NONTWIDDLED;
+        break; //RECTANGULAR STRIDE
 
     case 0x0D:
-        return PVR_TXRFMT_TWIDDLED; //RECTANGULAR TWIDDLED
+        texFormat = PVR_TXRFMT_TWIDDLED;
+        break; //RECTANGULAR TWIDDLED
 
     case 0x10:
-        return PVR_TXRFMT_VQ_ENABLE | PVR_TXRFMT_NONTWIDDLED; //SMALL VQ
+        texFormat = PVR_TXRFMT_VQ_ENABLE | PVR_TXRFMT_NONTWIDDLED;
+        break; //SMALL VQ
 
     default:
-        return PVR_TXRFMT_NONE;
+        texFormat = PVR_TXRFMT_NONE;
+        break;
     }
-}
 
-static uint32_t PVR_TextureWidth(unsigned char *HDR)
-{
-    return (uint32_t)HDR[PVR_HDR_SIZE - 4] | HDR[PVR_HDR_SIZE - 3] << 8;
-}
+    if (!(rv = pvr_mem_malloc(texW * texH * Bpp)))
+    {
+        printf("------    Couldn't allocate memory for texture!\n");
+        free(texBuf);
+        return NULL;
+    }
+    pvr_txr_load(texBuf + PVR_HDR_SIZE, rv, texW * texH * Bpp);
 
-static uint32_t PVR_TextureHeight(unsigned char *HDR)
-{
-    return (uint32_t)HDR[PVR_HDR_SIZE - 2] | HDR[PVR_HDR_SIZE - 1] << 8;
+    free(texBuf);
+
+    /* Fill our texture */
+    txr->w = texW;
+    txr->h = texH;
+    txr->fmt = texFormat | texColor;
+    txr->ptr = rv;
+    pvr_poly_cxt_txr(&txr->cxt_opaque, PVR_LIST_OP_POLY, txr->fmt, txr->w, txr->h, txr->ptr, PVR_FILTER_BILINEAR);
+    pvr_poly_cxt_txr(&txr->cxt_trans, PVR_LIST_TR_POLY, txr->fmt, txr->w, txr->h, txr->ptr, PVR_FILTER_BILINEAR);
+    pvr_poly_cxt_txr(&txr->cxt_pt, PVR_LIST_PT_POLY, txr->fmt, txr->w, txr->h, txr->ptr, PVR_FILTER_BILINEAR);
+
+    plx_txr_flush_hdrs(txr);
+
+    return txr;
 }

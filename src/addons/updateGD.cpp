@@ -1,4 +1,6 @@
 #include "updateGD.h"
+#include <arch/arch.h>
+#include <kos.h>
 
 extern "C"
 {
@@ -7,6 +9,7 @@ extern "C"
 }
 
 static uint8_t *ip_bin = (uint8_t *)0xAC008000;
+static uint32_t *ip_bt1 = (uint32_t *)0xAC00B800;
 static uint32_t *bin = (uint32_t *)0xAC010000;
 static uint32_t *bin_8 = (uint32_t *)0x8C010000;
 
@@ -158,12 +161,17 @@ int UpdateGD::readBinaryToMem()
 
 void UpdateGD::run()
 {
-    runit();
+    //runit();
+}
+extern "C"
+{
+    extern uint32 _arch_old_sr, _arch_old_vbr, _arch_old_stack, _arch_old_fpscr;
+    extern void __attribute__((weak)) arch_auto_shutdown();
 }
 
 void UpdateGD::run_alt()
 {
-    runit_kos(bin_8, bin_size);
+    arch_exec( bin, bin_size );
 }
 
 void UpdateGD::read_disc_info()
@@ -181,11 +189,6 @@ void UpdateGD::read_disc_info()
         }
     } while (1);
 
-    /* Reinitialize the drive */
-    /*do
-    {
-        rv = gdrom_reinit();
-    } while (rv != ERR_OK);*/
     gd_cdrom_init();
 
     gd_cdrom_get_status(&status, &disc_type);

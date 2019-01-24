@@ -20,6 +20,7 @@ default: $(BUILD_DIR)/$(TARGET_EXEC)
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS) $(BUILD_DIR)/romdisk.o
 	@echo "Linking $(TARGET_EXEC)"
 	@$(CXX) $(OBJS) $(BUILD_DIR)/romdisk.o -o $@ $(DREAM_LIBS) -Wl,-Ttext=0x8CE00000
+#	@$(CXX) $(OBJS) $(BUILD_DIR)/romdisk.o -o $@ $(DREAM_LIBS) -Wl,-Ttext=0x8C010000
 	@echo "Converting $(TARGET_EXEC) to Binary"
 	@sh-elf-objcopy -R .stack -O binary $@ $(basename $@)
 	
